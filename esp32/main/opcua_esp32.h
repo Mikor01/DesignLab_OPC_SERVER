@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <sys/param.h>
 #include <unistd.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "driver/uart.h"
 #include "esp_log.h"
 #include "esp_netif.h"
 #include <esp_flash_encrypt.h>
@@ -17,3 +20,8 @@
 #include "open62541.h"
 #include "DHT22.h"
 #include "model.h"
+
+#include <stdio.h>
+#include "driver/gpio.h"
+#include <string.h>
+#include <unistd.h> // For read() and STDIN_FILENO

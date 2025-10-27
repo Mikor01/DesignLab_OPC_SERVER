@@ -1,11 +1,23 @@
 #include "opcua_esp32.h"
 
+
 #define EXAMPLE_ESP_MAXIMUM_RETRY 10
 
 #define TAG "OPCUA_ESP32"
 #define SNTP_TAG "SNTP"
 #define MEMORY_TAG "MEMORY"
 #define ENABLE_MDNS 1
+
+#define UART_TAG "UART_BRIDGE"
+
+// UART Bridge Configuration
+#define UART_PC_NUM         (UART_NUM_0)
+#define UART_DEVICE_NUM     (UART_NUM_2)
+#define UART_BUF_SIZE       (1024)
+
+// Pinout for UART2 (to external device)
+#define TXD2_PIN            (GPIO_NUM_17)
+#define RXD2_PIN            (GPIO_NUM_16)
 
 static bool obtain_time(void);
 static void initialize_sntp(void);
@@ -169,7 +181,7 @@ static void opc_event_handler(void *arg, esp_event_base_t event_base,
 
     if (!isServerCreated)
     {
-        xTaskCreatePinnedToCore(opcua_task, "opcua_task", 24336, NULL, 10, NULL, 1);
+        xTaskCreatePinnedToCore(opcua_task, "opcua_task", 8192, NULL, 6, NULL, 1);
         ESP_LOGI(MEMORY_TAG, "Heap size after OPC UA Task : %d", esp_get_free_heap_size());
         isServerCreated = true;
     }
@@ -189,6 +201,105 @@ static void connection_scan(void)
     ESP_ERROR_CHECK(example_connect());
 }
 
+
+static void process_pc_command(const char *command)
+{
+    ESP_LOGI(UART_TAG, "Processing command: [%s]", command);
+
+    if (strcmp(command, "PING") == 0) {
+        printf("PONG\n");
+        // Also forward PING to Arduino to see its response
+        uart_write_bytes(UART_DEVICE_NUM, "PING\r\n", 6);
+
+    } else if (strcmp(command, "LED_ON") == 0) {
+        ESP_LOGI(UART_TAG, "Forwarding 'LED_ON' to device.");
+        const char *cmd = "LED_ON";
+        int bytes_sent = uart_write_bytes(UART_DEVICE_NUM, cmd, strlen(cmd));
+        if (bytes_sent == strlen(cmd)) {
+            ESP_LOGI(UART_TAG, "Successfully wrote %d bytes to UART buffer.", bytes_sent);
+        } else {
+            ESP_LOGE(UART_TAG, "UART write error! Expected to write %d, but wrote %d.", strlen(cmd), bytes_sent);
+        }
+    } else if (strcmp(command, "LED_OFF") == 0) {
+        ESP_LOGI(UART_TAG, "Forwarding 'LED_OFF' to device.");
+        uart_write_bytes(UART_DEVICE_NUM, "LED_OFF", 9);
+        
+    } else if (strcmp(command, "STATUS") == 0) {
+        ESP_LOGI(UART_TAG, "Forwarding 'STATUS' to device.");
+        uart_write_bytes(UART_DEVICE_NUM, "STATUS", 8);
+
+    } else {
+        printf("ERROR: Unknown command '%s'\n", command);
+    }
+}
+
+
+/**
+ * @brief The main task for handling UART communication.
+ * 
+ * This task does two things in its main loop:
+ * 1. Assembles complete command lines from the PC (stdin) and processes them.
+ * 2. Reads and displays any asynchronous responses from the external device (UART2).
+ */
+static void uart_bridge_task(void *arg)
+{
+    // --- UART2 (Device) Configuration ---
+    uart_config_t uart_config_device = {
+        .baud_rate = 9600,
+        .data_bits = UART_DATA_8_BITS,
+        .parity    = UART_PARITY_DISABLE,
+        .stop_bits = UART_STOP_BITS_1,
+        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+    };
+
+    // Install the driver, allocating RX and TX buffers
+    ESP_ERROR_CHECK(uart_driver_install(UART_DEVICE_NUM, UART_BUF_SIZE * 2, UART_BUF_SIZE * 2, 0, NULL, 0));
+    ESP_ERROR_CHECK(uart_param_config(UART_DEVICE_NUM, &uart_config_device));
+
+    // Now, connect the UART peripheral to the correctly configured pins
+    ESP_ERROR_CHECK(uart_set_pin(UART_DEVICE_NUM, TXD2_PIN, RXD2_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
+
+
+    // --- Buffers for communication ---
+    uint8_t *device_data = (uint8_t *) malloc(UART_BUF_SIZE);
+    static char pc_cmd_buffer[128];
+    static int pc_cmd_index = 0;
+
+    ESP_LOGI(UART_TAG, "UART Command Processor Initialized.");
+    printf("Ready for commands (PING, LED_ON, LED_OFF, STATUS)\n");
+
+    while (1) {
+        char c;
+        int len_pc = read(STDIN_FILENO, &c, 1);
+
+        if (len_pc > 0) {
+            if (c == '\n' || c == '\r') {
+                pc_cmd_buffer[pc_cmd_index] = '\0';
+                if (pc_cmd_index > 0) {
+                    process_pc_command(pc_cmd_buffer);
+                }
+                pc_cmd_index = 0;
+            } else {
+                if (pc_cmd_index < (sizeof(pc_cmd_buffer) - 1)) {
+                    pc_cmd_buffer[pc_cmd_index++] = c;
+                }
+            }
+        }
+
+        int len_device = uart_read_bytes(UART_DEVICE_NUM, device_data, UART_BUF_SIZE, 20 / portTICK_PERIOD_MS);
+        if (len_device > 0) {
+            device_data[len_device] = '\0';
+            printf("<<< Device Response: [%s]\n", (char*)device_data);
+        }
+
+        // Yield CPU time to other tasks
+        vTaskDelay(20 / portTICK_PERIOD_MS);
+    }
+    
+    free(device_data);
+    uart_driver_delete(UART_DEVICE_NUM);
+}
+
 void app_main(void)
 {
     ++boot_count;
@@ -206,4 +317,6 @@ void app_main(void)
         ESP_ERROR_CHECK(nvs_flash_init());
     }
     connection_scan();
+
+    xTaskCreate(uart_bridge_task, "uart_bridge_task", 4096, NULL, 5, NULL);
 }

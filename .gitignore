@@ -1,0 +1,34 @@
+#Ignore build files
+esp32/build/
+/build
+/.vscode
+sdkconfig
+sdkconfig.old
+.vscode
+.settings
+*.bin
+*.elf
+*.map
+
+# Generated CMake/Ninja files
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+build.ninja
+.ninja_log
+.ninja_deps
+
+# Logs and temp files
+*.log
+*.tmp
+*.bak
+*.orig
+
+# sdkconfig backups
+sdkconfig.old
+sdkconfig.defaults
+sdkconfig.txt
+/esp32/sdkconfig
+/esp32/sdkconfig.old
+/esp32/sdkconfig.defaults
+/esp32/sdkconfig.txt

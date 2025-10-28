@@ -106,7 +106,7 @@ static void opcua_task(void *arg)
     UA_ServerConfig_setCustomHostname(config, hostName);
 
     /* Add Information Model Objects Here */
-    addCurrentTemperatureDataSourceVariable(server);
+    //addCurrentTemperatureDataSourceVariable(server);
     addRelay0ControlNode(server);
     addRelay1ControlNode(server);
 
@@ -206,30 +206,34 @@ static void process_pc_command(const char *command)
 {
     ESP_LOGI(UART_TAG, "Processing command: [%s]", command);
 
-    if (strcmp(command, "PING") == 0) {
-        printf("PONG\n");
-        // Also forward PING to Arduino to see its response
-        uart_write_bytes(UART_DEVICE_NUM, "PING\r\n", 6);
+    // Simple parser for commands like "IN1 5", "IN2 10", "PING", "STATUS"
+    char cmd[16];
+    int value = 0;
+    int parsed = sscanf(command, "%15s %d", cmd, &value);
 
-    } else if (strcmp(command, "LED_ON") == 0) {
-        ESP_LOGI(UART_TAG, "Forwarding 'LED_ON' to device.");
-        const char *cmd = "LED_ON";
-        int bytes_sent = uart_write_bytes(UART_DEVICE_NUM, cmd, strlen(cmd));
-        if (bytes_sent == strlen(cmd)) {
-            ESP_LOGI(UART_TAG, "Successfully wrote %d bytes to UART buffer.", bytes_sent);
-        } else {
-            ESP_LOGE(UART_TAG, "UART write error! Expected to write %d, but wrote %d.", strlen(cmd), bytes_sent);
-        }
-    } else if (strcmp(command, "LED_OFF") == 0) {
-        ESP_LOGI(UART_TAG, "Forwarding 'LED_OFF' to device.");
-        uart_write_bytes(UART_DEVICE_NUM, "LED_OFF", 9);
-        
-    } else if (strcmp(command, "STATUS") == 0) {
-        ESP_LOGI(UART_TAG, "Forwarding 'STATUS' to device.");
-        uart_write_bytes(UART_DEVICE_NUM, "STATUS", 8);
+    if (strcasecmp(cmd, "PING") == 0) {
+        printf("PONG\n");
+        uart_write_bytes(UART_DEVICE_NUM, "PING\n", 5);
+
+    } else if (strcasecmp(cmd, "STATUS") == 0) {
+        ESP_LOGI(UART_TAG, "Requesting status from Arduino");
+        uart_write_bytes(UART_DEVICE_NUM, "STATUS\n", 7);
+
+    } else if (strcasecmp(cmd, "IN1") == 0 && parsed == 2) {
+        char buffer[32];
+        snprintf(buffer, sizeof(buffer), "SET IN1 %d\n", value);
+        ESP_LOGI(UART_TAG, "Forwarding command: %s", buffer);
+        uart_write_bytes(UART_DEVICE_NUM, buffer, strlen(buffer));
+
+    } else if (strcasecmp(cmd, "IN2") == 0 && parsed == 2) {
+        char buffer[32];
+        snprintf(buffer, sizeof(buffer), "SET IN2 %d\n", value);
+        ESP_LOGI(UART_TAG, "Forwarding command: %s", buffer);
+        uart_write_bytes(UART_DEVICE_NUM, buffer, strlen(buffer));
 
     } else {
-        printf("ERROR: Unknown command '%s'\n", command);
+        printf("ERROR: Unknown or invalid command '%s'\n", command);
+        printf("Usage:\n  IN1 <1-12>\n  IN2 <1-12>\n  STATUS\n  PING\n");
     }
 }
 
@@ -266,7 +270,7 @@ static void uart_bridge_task(void *arg)
     static int pc_cmd_index = 0;
 
     ESP_LOGI(UART_TAG, "UART Command Processor Initialized.");
-    printf("Ready for commands (PING, LED_ON, LED_OFF, STATUS)\n");
+    printf("Ready for commands (PING, STATUS, IN1 <1-12>, IN2 <1-12>)\n");
 
     while (1) {
         char c;

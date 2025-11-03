@@ -1,32 +1,17 @@
 #include "open62541.h"
 
 /* GPIO Numbers */
-// #define BLINK_GPIO 2
 #define DHT22_GPIO 4
 #define RELAY_0_GPIO 32
 #define RELAY_1_GPIO 33
-// #define RELAY_2_GPIO 26
-// #define RELAY_3_GPIO 27
-
-// /* Led Method */
-// UA_StatusCode
-// ledProcessCallBack(UA_Server *server,
-//                    const UA_NodeId *sessionId, void *sessionHandle,
-//                    const UA_NodeId *methodId, void *methodContext,
-//                    const UA_NodeId *objectId, void *objectContext,
-//                    size_t inputSize, const UA_Variant *input,
-//                    size_t outputSize, UA_Variant *output);
-
-// void
-// addLEDMethod(UA_Server *server);
 
 /* Temperature */
 UA_StatusCode
 readCurrentTemperature(UA_Server *server,
-                const UA_NodeId *sessionId, void *sessionContext,
-                const UA_NodeId *nodeId, void *nodeContext,
-                UA_Boolean sourceTimeStamp, const UA_NumericRange *range,
-                UA_DataValue *dataValue);
+                       const UA_NodeId *sessionId, void *sessionContext,
+                       const UA_NodeId *nodeId, void *nodeContext,
+                       UA_Boolean sourceTimeStamp, const UA_NumericRange *range,
+                       UA_DataValue *dataValue);
 
 void
 addCurrentTemperatureDataSourceVariable(UA_Server *server);
@@ -41,9 +26,9 @@ readRelay0State(UA_Server *server,
 
 UA_StatusCode
 setRelay0State(UA_Server *server,
-                  const UA_NodeId *sessionId, void *sessionContext,
-                  const UA_NodeId *nodeId, void *nodeContext,
-                 const UA_NumericRange *range, const UA_DataValue *data);
+               const UA_NodeId *sessionId, void *sessionContext,
+               const UA_NodeId *nodeId, void *nodeContext,
+               const UA_NumericRange *range, const UA_DataValue *data);
 
 void
 addRelay0ControlNode(UA_Server *server);
@@ -58,9 +43,64 @@ readRelay1State(UA_Server *server,
 
 UA_StatusCode
 setRelay1State(UA_Server *server,
-                  const UA_NodeId *sessionId, void *sessionContext,
-                  const UA_NodeId *nodeId, void *nodeContext,
-                 const UA_NumericRange *range, const UA_DataValue *data);
+               const UA_NodeId *sessionId, void *sessionContext,
+               const UA_NodeId *nodeId, void *nodeContext,
+               const UA_NumericRange *range, const UA_DataValue *data);
 
 void
 addRelay1ControlNode(UA_Server *server);
+
+/* UART Command Functions */
+void send_uart_command_from_opcua(const char *cmd, int value);
+
+/* IN1 Control */
+UA_StatusCode
+readIN1Value(UA_Server *server,
+             const UA_NodeId *sessionId, void *sessionContext,
+             const UA_NodeId *nodeId, void *nodeContext,
+             UA_Boolean sourceTimeStamp, const UA_NumericRange *range,
+             UA_DataValue *dataValue);
+
+UA_StatusCode
+writeIN1Value(UA_Server *server,
+              const UA_NodeId *sessionId, void *sessionContext,
+              const UA_NodeId *nodeId, void *nodeContext,
+              const UA_NumericRange *range, const UA_DataValue *data);
+
+void
+addIN1ControlNode(UA_Server *server);
+
+/* IN2 Control */
+UA_StatusCode
+readIN2Value(UA_Server *server,
+             const UA_NodeId *sessionId, void *sessionContext,
+             const UA_NodeId *nodeId, void *nodeContext,
+             UA_Boolean sourceTimeStamp, const UA_NumericRange *range,
+             UA_DataValue *dataValue);
+
+UA_StatusCode
+writeIN2Value(UA_Server *server,
+              const UA_NodeId *sessionId, void *sessionContext,
+              const UA_NodeId *nodeId, void *nodeContext,
+              const UA_NumericRange *range, const UA_DataValue *data);
+
+void
+addIN2ControlNode(UA_Server *server);
+
+/* UART Status */
+UA_StatusCode
+readUARTStatus(UA_Server *server,
+               const UA_NodeId *sessionId, void *sessionContext,
+               const UA_NodeId *nodeId, void *nodeContext,
+               UA_Boolean sourceTimeStamp, const UA_NumericRange *range,
+               UA_DataValue *dataValue);
+
+void
+addUARTStatusNode(UA_Server *server);
+
+/* Udostępnij zmienne globalne dla innych plików (np. opcua_esp32.c) */
+extern UA_Int32 current_IN1_value;
+extern UA_Int32 current_IN2_value;
+
+/* Deklaracja funkcji pomocniczej do aktualizacji statusu UART */
+void update_uart_status_string(const char* new_status);

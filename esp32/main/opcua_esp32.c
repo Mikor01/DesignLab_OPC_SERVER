@@ -1,5 +1,5 @@
 #include "opcua_esp32.h"
-
+#include "model.h"
 
 #define EXAMPLE_ESP_MAXIMUM_RETRY 10
 
@@ -12,7 +12,7 @@
 
 // UART Bridge Configuration
 #define UART_PC_NUM         (UART_NUM_0)
-#define UART_DEVICE_NUM     (UART_NUM_2)
+const int UART_DEVICE_NUM = UART_NUM_2;  // Eksportowane dla model.c
 #define UART_BUF_SIZE       (1024)
 
 // Pinout for UART2 (to external device)
@@ -72,36 +72,7 @@ static void opcua_task(void *arg)
 
     const char *appUri = "open62541.esp32.server";
     UA_String hostName = UA_STRING("opcua-esp32");
-    // #ifdef ENABLE_MDNS
-    //     config->mdnsEnabled = true;
-    //     config->mdnsConfig.mdnsServerName = UA_String_fromChars(appUri);
-    //     config->mdnsConfig.serverCapabilitiesSize = 2;
-    //     UA_String *caps = (UA_String *)UA_Array_new(2, &UA_TYPES[UA_TYPES_STRING]);
-    //     caps[0] = UA_String_fromChars("LDS");
-    //     caps[1] = UA_String_fromChars("NA");
-    //     config->mdnsConfig.serverCapabilities = caps;
-
-    //     // We need to set the default IP address for mDNS since internally it's not able to detect it.
-    //     tcpip_adapter_ip_info_t default_ip;
-
-    //     #ifdef CONFIG_EXAMPLE_CONNECT_ETHERNET
-    //     tcpip_adapter_if_t tcpip_if = TCPIP_ADAPTER_IF_ETH;
-    //     #else
-    //     tcpip_adapter_if_t tcpip_if = TCPIP_ADAPTER_IF_STA;
-    //     #endif
-
-    //     esp_err_t ret = tcpip_adapter_get_ip_info(tcpip_if, &default_ip);
-    //     if ((ESP_OK == ret) && (default_ip.ip.addr != INADDR_ANY))
-    //     {
-    //         config->mdnsIpAddressListSize = 1;
-    //         config->mdnsIpAddressList = (uint32_t *)UA_malloc(sizeof(uint32_t) * config->mdnsIpAddressListSize);
-    //         memcpy(config->mdnsIpAddressList, &default_ip.ip.addr, sizeof(uint32_t));
-    //     }
-    //     else
-    //     {
-    //         ESP_LOGI(TAG, "Could not get default IP Address!");
-    //     }
-    // #endif
+    
     UA_ServerConfig_setUriName(config, appUri, "OPC_UA_Server_ESP32");
     UA_ServerConfig_setCustomHostname(config, hostName);
 
@@ -109,6 +80,11 @@ static void opcua_task(void *arg)
     addCurrentTemperatureDataSourceVariable(server);
     addRelay0ControlNode(server);
     addRelay1ControlNode(server);
+    
+    // Dodaj nowe węzły UART
+    addIN1ControlNode(server);
+    addIN2ControlNode(server);
+    addUARTStatusNode(server);
 
     ESP_LOGI(TAG, "Heap Left : %d", xPortGetFreeHeapSize());
     UA_StatusCode retval = UA_Server_run_startup(server);
@@ -117,7 +93,7 @@ static void opcua_task(void *arg)
         while (running)
         {
             UA_Server_run_iterate(server, false);
-             vTaskDelay(100 / portTICK_PERIOD_MS);
+            vTaskDelay(100 / portTICK_PERIOD_MS);
             ESP_ERROR_CHECK(esp_task_wdt_reset());
             taskYIELD();
         }
@@ -168,7 +144,7 @@ static void opc_event_handler(void *arg, esp_event_base_t event_base,
     {
         if (timeinfo.tm_year < (2016 - 1900))
         {
-            ESP_LOGI(SNTP_TAG, "Time is not set yet. Settting up network connection and getting time over NTP.");
+            ESP_LOGI(SNTP_TAG, "Time is not set yet. Setting up network connection and getting time over NTP.");
             if (!obtain_time())
             {
                 ESP_LOGE(SNTP_TAG, "Could not get time from NTP. Using default timestamp.");
@@ -176,7 +152,9 @@ static void opc_event_handler(void *arg, esp_event_base_t event_base,
             time(&now);
         }
         localtime_r(&now, &timeinfo);
-        ESP_LOGI(SNTP_TAG, "Current time: %d-%02d-%02d %02d:%02d:%02d", timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday, timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+        ESP_LOGI(SNTP_TAG, "Current time: %d-%02d-%02d %02d:%02d:%02d", 
+                 timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday, 
+                 timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
     }
 
     if (!isServerCreated)
@@ -201,12 +179,10 @@ static void connection_scan(void)
     ESP_ERROR_CHECK(example_connect());
 }
 
-
 static void process_pc_command(const char *command)
 {
     ESP_LOGI(UART_TAG, "Processing command: [%s]", command);
 
-    // Simple parser for commands like "IN1 5", "IN2 10", "PING", "STATUS"
     char cmd[16];
     int value = 0;
     int parsed = sscanf(command, "%15s %d", cmd, &value);
@@ -220,16 +196,26 @@ static void process_pc_command(const char *command)
         uart_write_bytes(UART_DEVICE_NUM, "STATUS\n", 7);
 
     } else if (strcasecmp(cmd, "IN1") == 0 && parsed == 2) {
-        char buffer[32];
-        snprintf(buffer, sizeof(buffer), "SET IN1 %d\n", value);
-        ESP_LOGI(UART_TAG, "Forwarding command: %s", buffer);
-        uart_write_bytes(UART_DEVICE_NUM, buffer, strlen(buffer));
+        if (value >= 1 && value <= 12) {
+            char buffer[32];
+            snprintf(buffer, sizeof(buffer), "SET IN1 %d\n", value);
+            ESP_LOGI(UART_TAG, "Forwarding command: %s", buffer);
+            uart_write_bytes(UART_DEVICE_NUM, buffer, strlen(buffer));
+            current_IN1_value = value;
+        } else {
+            printf("ERROR: IN1 value must be between 1 and 12\n");
+        }
 
     } else if (strcasecmp(cmd, "IN2") == 0 && parsed == 2) {
-        char buffer[32];
-        snprintf(buffer, sizeof(buffer), "SET IN2 %d\n", value);
-        ESP_LOGI(UART_TAG, "Forwarding command: %s", buffer);
-        uart_write_bytes(UART_DEVICE_NUM, buffer, strlen(buffer));
+        if (value >= 1 && value <= 12) {
+            char buffer[32];
+            snprintf(buffer, sizeof(buffer), "SET IN2 %d\n", value);
+            ESP_LOGI(UART_TAG, "Forwarding command: %s", buffer);
+            uart_write_bytes(UART_DEVICE_NUM, buffer, strlen(buffer));
+            current_IN2_value = value;
+        } else {
+            printf("ERROR: IN2 value must be between 1 and 12\n");
+        }
 
     } else {
         printf("ERROR: Unknown or invalid command '%s'\n", command);
@@ -237,14 +223,6 @@ static void process_pc_command(const char *command)
     }
 }
 
-
-/**
- * @brief The main task for handling UART communication.
- * 
- * This task does two things in its main loop:
- * 1. Assembles complete command lines from the PC (stdin) and processes them.
- * 2. Reads and displays any asynchronous responses from the external device (UART2).
- */
 static void uart_bridge_task(void *arg)
 {
     // --- UART2 (Device) Configuration ---
@@ -256,13 +234,9 @@ static void uart_bridge_task(void *arg)
         .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
     };
 
-    // Install the driver, allocating RX and TX buffers
     ESP_ERROR_CHECK(uart_driver_install(UART_DEVICE_NUM, UART_BUF_SIZE * 2, UART_BUF_SIZE * 2, 0, NULL, 0));
     ESP_ERROR_CHECK(uart_param_config(UART_DEVICE_NUM, &uart_config_device));
-
-    // Now, connect the UART peripheral to the correctly configured pins
     ESP_ERROR_CHECK(uart_set_pin(UART_DEVICE_NUM, TXD2_PIN, RXD2_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
-
 
     // --- Buffers for communication ---
     uint8_t *device_data = (uint8_t *) malloc(UART_BUF_SIZE);
@@ -294,9 +268,12 @@ static void uart_bridge_task(void *arg)
         if (len_device > 0) {
             device_data[len_device] = '\0';
             printf("<<< Device Response: [%s]\n", (char*)device_data);
+
+            char *response_str = (char*)device_data;
+            response_str[strcspn(response_str, "\r\n")] = 0;
+            update_uart_status_string(response_str);
         }
 
-        // Yield CPU time to other tasks
         vTaskDelay(20 / portTICK_PERIOD_MS);
     }
     
@@ -307,7 +284,6 @@ static void uart_bridge_task(void *arg)
 void app_main(void)
 {
     ++boot_count;
-    // Workaround for CVE-2019-15894
     nvs_flash_init();
     if (esp_flash_encryption_enabled())
     {

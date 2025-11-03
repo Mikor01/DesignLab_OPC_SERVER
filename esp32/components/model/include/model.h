@@ -8,10 +8,10 @@
 /* Temperature */
 UA_StatusCode
 readCurrentTemperature(UA_Server *server,
-                       const UA_NodeId *sessionId, void *sessionContext,
-                       const UA_NodeId *nodeId, void *nodeContext,
-                       UA_Boolean sourceTimeStamp, const UA_NumericRange *range,
-                       UA_DataValue *dataValue);
+                const UA_NodeId *sessionId, void *sessionContext,
+                const UA_NodeId *nodeId, void *nodeContext,
+                UA_Boolean sourceTimeStamp, const UA_NumericRange *range,
+                UA_DataValue *dataValue);
 
 void
 addCurrentTemperatureDataSourceVariable(UA_Server *server);
@@ -26,9 +26,9 @@ readRelay0State(UA_Server *server,
 
 UA_StatusCode
 setRelay0State(UA_Server *server,
-               const UA_NodeId *sessionId, void *sessionContext,
-               const UA_NodeId *nodeId, void *nodeContext,
-               const UA_NumericRange *range, const UA_DataValue *data);
+                  const UA_NodeId *sessionId, void *sessionContext,
+                  const UA_NodeId *nodeId, void *nodeContext,
+                 const UA_NumericRange *range, const UA_DataValue *data);
 
 void
 addRelay0ControlNode(UA_Server *server);
@@ -43,9 +43,9 @@ readRelay1State(UA_Server *server,
 
 UA_StatusCode
 setRelay1State(UA_Server *server,
-               const UA_NodeId *sessionId, void *sessionContext,
-               const UA_NodeId *nodeId, void *nodeContext,
-               const UA_NumericRange *range, const UA_DataValue *data);
+                  const UA_NodeId *sessionId, void *sessionContext,
+                  const UA_NodeId *nodeId, void *nodeContext,
+                 const UA_NumericRange *range, const UA_DataValue *data);
 
 void
 addRelay1ControlNode(UA_Server *server);
@@ -98,9 +98,3 @@ readUARTStatus(UA_Server *server,
 void
 addUARTStatusNode(UA_Server *server);
 
-
-extern UA_Int32 current_IN1_value;
-extern UA_Int32 current_IN2_value;
-
-
-void update_uart_status_string(const char* new_status);

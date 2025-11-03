@@ -34,9 +34,11 @@ git clone https://github.com/Mikor01/DesignLab_OPC_SERVER.git
 cd DesignLab_OPC_SERVER/esp32
 ```
 
-2. Configure your WiFi credentials and server settings:
+2. Configure your WiFi credentials and server settings, using provided template:
 ```bash
+cp sdkconfig.default sdkconfig
 idf.py menuconfig
+-> Connection settings
 ```
 
 3. Build the project:
@@ -66,3 +68,8 @@ You can connect to the server using any OPC UA client (such as UAExpert or Prosy
 This project is built upon:
 - [open62541](https://github.com/open62541/open62541) - An open source OPC UA implementation
 - [opcua-esp32](https://github.com/cmbahadir/opcua-esp32) - ESP32 port by cmbahadir
+
+
+## Project Progress
+30.10.25 - initial commits and testing
+

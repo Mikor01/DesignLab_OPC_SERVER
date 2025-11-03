@@ -34,9 +34,11 @@ git clone https://github.com/Mikor01/DesignLab_OPC_SERVER.git
 cd DesignLab_OPC_SERVER/esp32
 ```
 
-2. Configure your WiFi credentials and server settings:
+2. Configure your WiFi credentials and server settings, using provided template:
 ```bash
+cp sdkconfig.default sdkconfig
 idf.py menuconfig
+-> Connection settings
 ```
 
 3. Build the project:

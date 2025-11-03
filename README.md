@@ -70,6 +70,6 @@ This project is built upon:
 - [opcua-esp32](https://github.com/cmbahadir/opcua-esp32) - ESP32 port by cmbahadir
 
 
-##Project Progress
+## Project Progress
 30.10.25 - initial commits and testing
 

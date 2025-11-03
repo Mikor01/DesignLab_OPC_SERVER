@@ -6,30 +6,28 @@
 #include <string.h>
 #include <stdio.h>
 
-// Globalne zmienne do przechowywania stanu
 UA_Int32 current_IN1_value = 0;
 UA_Int32 current_IN2_value = 0;
 static UA_String last_uart_status = {0, NULL};
 
-extern const int UART_DEVICE_NUM;  // Z opcua_esp32.c
+extern const int UART_DEVICE_NUM; 
 
 static void configureGPIO();
 
-/* Konfiguracja GPIO */
+
 static void configureGPIO(void) {
     gpio_set_direction(RELAY_0_GPIO, GPIO_MODE_INPUT_OUTPUT);
     gpio_set_direction(RELAY_1_GPIO, GPIO_MODE_INPUT_OUTPUT);
 }
 
-/* Temperatura */
+
 UA_StatusCode
 readCurrentTemperature(UA_Server *server,
                        const UA_NodeId *sessionId, void *sessionContext,
                        const UA_NodeId *nodeId, void *nodeContext,
                        UA_Boolean sourceTimeStamp, const UA_NumericRange *range,
                        UA_DataValue *dataValue) {
-    // Wersja symulowana, jeśli DHT22 nie jest dostępny
-    // UA_Float temperature = (UA_Float)(esp_random() % 1000) / 10.0f; 
+    f; 
     
     UA_Float temperature = ReadTemperature(DHT22_GPIO);
     UA_Variant_setScalarCopy(&dataValue->value, &temperature,
@@ -83,10 +81,10 @@ setRelay0State(UA_Server *server,
     }
     UA_Boolean newState = *(UA_Boolean*)data->value.data;
     
-    // Zmienia stan, używając operatora logicznego do odwrócenia wartości, jeśli trzeba
+
     gpio_set_level(RELAY_0_GPIO, newState ? 1 : 0); 
     
-    // Prosta weryfikacja (zwraca GOOD bez względu na ostateczny stan GPIO w tym przykładzie)
+
     return UA_STATUSCODE_GOOD;
 }
 
@@ -137,10 +135,10 @@ setRelay1State(UA_Server *server,
     }
     UA_Boolean newState = *(UA_Boolean*)data->value.data;
     
-    // Zmienia stan, używając operatora logicznego do odwrócenia wartości, jeśli trzeba
+  
     gpio_set_level(RELAY_1_GPIO, newState ? 1 : 0); 
     
-    // Prosta weryfikacja
+
     return UA_STATUSCODE_GOOD;
 }
 
@@ -197,15 +195,15 @@ writeIN1Value(UA_Server *server,
     
     UA_Int32 value = *(UA_Int32*)data->value.data;
     
-    // Walidacja zakresu 1-12 (sprawdza błąd Error_Configuration)
+  
     if (value < 1 || value > 12) {
-        return UA_STATUSCODE_BADOUTOFRANGE; // Zwraca precyzyjny błąd OPC UA
+        return UA_STATUSCODE_BADOUTOFRANGE; 
     }
     
-    // Wyślij komendę UART
+    
     send_uart_command_from_opcua("IN1", value);
     
-    // Zaktualizuj wartość w serwerze OPC UA
+    
     current_IN1_value = value;
     
     return UA_STATUSCODE_GOOD;
@@ -263,15 +261,14 @@ writeIN2Value(UA_Server *server,
     
     UA_Int32 value = *(UA_Int32*)data->value.data;
     
-    // Walidacja zakresu 1-12 (sprawdza błąd Error_Configuration)
     if (value < 1 || value > 12) {
-        return UA_STATUSCODE_BADOUTOFRANGE; // Zwraca precyzyjny błąd OPC UA
+        return UA_STATUSCODE_BADOUTOFRANGE; 
     }
     
-    // Wyślij komendę UART
+    
     send_uart_command_from_opcua("IN2", value);
     
-    // Zaktualizuj wartość w serwerze OPC UA
+    
     current_IN2_value = value;
     
     return UA_STATUSCODE_GOOD;
@@ -305,7 +302,7 @@ addIN2ControlNode(UA_Server *server) {
                                         in2DataSource, NULL, NULL);
 }
 
-/* UART Status Node - pokazuje ostatni status z Arduino */
+
 UA_StatusCode
 readUARTStatus(UA_Server *server,
                const UA_NodeId *sessionId, void *sessionContext,
@@ -348,26 +345,24 @@ addUARTStatusNode(UA_Server *server) {
 }
 
 void update_uart_status_string(const char* new_status) {
-    // Upewnij się, że nie czyścimy UA_STRING, jeśli jest NULL
+   
     if (last_uart_status.data != NULL) {
         UA_String_clear(&last_uart_status);
     }
     last_uart_status = UA_String_fromChars(new_status);
 }
 
-// NOWA FUNKCJA: Parsuje odpowiedź STATUS i aktualizuje zmienne IN1/IN2
+
 void update_in_values_from_status(const char* status_response) {
     int in1_val = -1;
     int in2_val = -1;
     
-    // Oczekujemy formatu np. "IN1=5 IN2=10"
-    // Używamy sscanf, aby spróbować wyodrębnić wartości
-    // Znak spacji między %d a IN2 jest istotny.
+    
     int result = sscanf(status_response, "IN1=%d IN2=%d", &in1_val, &in2_val);
 
-    // Jeśli parsowanie się powiodło i mamy dwie wartości
+  
     if (result == 2) {
-        // Aktualizujemy zmienne globalne
+      
         if (in1_val >= 1 && in1_val <= 12) {
             current_IN1_value = in1_val;
         }

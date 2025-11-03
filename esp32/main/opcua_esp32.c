@@ -12,7 +12,7 @@
 
 // UART Bridge Configuration
 #define UART_PC_NUM         (UART_NUM_0)
-const int UART_DEVICE_NUM = UART_NUM_2;  // Eksportowane dla model.c
+const int UART_DEVICE_NUM = UART_NUM_2;  
 #define UART_BUF_SIZE       (1024)
 
 // Pinout for UART2 (to external device)
@@ -81,7 +81,7 @@ static void opcua_task(void *arg)
     addRelay0ControlNode(server);
     addRelay1ControlNode(server);
     
-    // Dodaj nowe węzły UART
+    
     addIN1ControlNode(server);
     addIN2ControlNode(server);
     addUARTStatusNode(server);

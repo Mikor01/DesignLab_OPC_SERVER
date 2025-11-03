@@ -370,6 +370,6 @@ void update_in_values_from_status(const char* status_response) {
         }
     }
     
-    // Zapisujemy całą odpowiedź do węzła statusu
+    
     update_uart_status_string(status_response);
 }

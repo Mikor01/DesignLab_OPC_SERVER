@@ -27,7 +27,6 @@ readCurrentTemperature(UA_Server *server,
                        const UA_NodeId *nodeId, void *nodeContext,
                        UA_Boolean sourceTimeStamp, const UA_NumericRange *range,
                        UA_DataValue *dataValue) {
-    f; 
     
     UA_Float temperature = ReadTemperature(DHT22_GPIO);
     UA_Variant_setScalarCopy(&dataValue->value, &temperature,

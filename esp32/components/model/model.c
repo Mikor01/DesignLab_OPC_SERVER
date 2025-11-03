@@ -4,30 +4,29 @@
 #include "driver/gpio.h"
 #include "driver/uart.h"
 #include <string.h>
-#include <stdio.h>
 
-UA_Int32 current_IN1_value = 0;
-UA_Int32 current_IN2_value = 0;
+
+static UA_Int32 current_IN1_value = 0;
+static UA_Int32 current_IN2_value = 0;
 static UA_String last_uart_status = {0, NULL};
 
-extern const int UART_DEVICE_NUM; 
+extern const int UART_DEVICE_NUM;  
 
 static void configureGPIO();
 
-
+/* GPIO Configuration */
 static void configureGPIO(void) {
     gpio_set_direction(RELAY_0_GPIO, GPIO_MODE_INPUT_OUTPUT);
     gpio_set_direction(RELAY_1_GPIO, GPIO_MODE_INPUT_OUTPUT);
 }
 
-
+/* Temperature */
 UA_StatusCode
 readCurrentTemperature(UA_Server *server,
-                       const UA_NodeId *sessionId, void *sessionContext,
-                       const UA_NodeId *nodeId, void *nodeContext,
-                       UA_Boolean sourceTimeStamp, const UA_NumericRange *range,
-                       UA_DataValue *dataValue) {
-    
+                const UA_NodeId *sessionId, void *sessionContext,
+                const UA_NodeId *nodeId, void *nodeContext,
+                UA_Boolean sourceTimeStamp, const UA_NumericRange *range,
+                UA_DataValue *dataValue) {
     UA_Float temperature = ReadTemperature(DHT22_GPIO);
     UA_Variant_setScalarCopy(&dataValue->value, &temperature,
                              &UA_TYPES[UA_TYPES_FLOAT]);
@@ -72,19 +71,15 @@ readRelay0State(UA_Server *server,
 
 UA_StatusCode
 setRelay0State(UA_Server *server,
-               const UA_NodeId *sessionId, void *sessionContext,
-               const UA_NodeId *nodeId, void *nodeContext,
-               const UA_NumericRange *range, const UA_DataValue *data) {
-    if (data->value.type != &UA_TYPES[UA_TYPES_BOOLEAN]) {
-        return UA_STATUSCODE_BADTYPEMISMATCH;
-    }
-    UA_Boolean newState = *(UA_Boolean*)data->value.data;
-    
-
-    gpio_set_level(RELAY_0_GPIO, newState ? 1 : 0); 
-    
-
-    return UA_STATUSCODE_GOOD;
+                  const UA_NodeId *sessionId, void *sessionContext,
+                  const UA_NodeId *nodeId, void *nodeContext,
+                 const UA_NumericRange *range, const UA_DataValue *data) {
+    UA_Boolean currentState = gpio_get_level(RELAY_0_GPIO);
+    int level = currentState == true ? 0:1;
+    gpio_set_level(RELAY_0_GPIO, level);
+    UA_Boolean relay0_state_after_write = gpio_get_level(RELAY_0_GPIO);
+    UA_StatusCode status = relay0_state_after_write == level ? UA_STATUSCODE_GOOD : UA_STATUSCODE_BADINTERNALERROR;
+    return status;
 }
 
 void
@@ -126,19 +121,15 @@ readRelay1State(UA_Server *server,
 
 UA_StatusCode
 setRelay1State(UA_Server *server,
-               const UA_NodeId *sessionId, void *sessionContext,
-               const UA_NodeId *nodeId, void *nodeContext,
-               const UA_NumericRange *range, const UA_DataValue *data) {
-    if (data->value.type != &UA_TYPES[UA_TYPES_BOOLEAN]) {
-        return UA_STATUSCODE_BADTYPEMISMATCH;
-    }
-    UA_Boolean newState = *(UA_Boolean*)data->value.data;
-    
-  
-    gpio_set_level(RELAY_1_GPIO, newState ? 1 : 0); 
-    
-
-    return UA_STATUSCODE_GOOD;
+                  const UA_NodeId *sessionId, void *sessionContext,
+                  const UA_NodeId *nodeId, void *nodeContext,
+                 const UA_NumericRange *range, const UA_DataValue *data) {
+    UA_Boolean currentState = gpio_get_level(RELAY_1_GPIO);
+    int level = currentState == true ? 0:1;
+    gpio_set_level(RELAY_1_GPIO, level);
+    UA_Boolean relay1_state_after_write = gpio_get_level(RELAY_1_GPIO);
+    UA_StatusCode status = relay1_state_after_write == level ? UA_STATUSCODE_GOOD : UA_STATUSCODE_BADINTERNALERROR;
+    return status;
 }
 
 void
@@ -194,9 +185,9 @@ writeIN1Value(UA_Server *server,
     
     UA_Int32 value = *(UA_Int32*)data->value.data;
     
-  
+    
     if (value < 1 || value > 12) {
-        return UA_STATUSCODE_BADOUTOFRANGE; 
+        return UA_STATUSCODE_BADOUTOFRANGE;
     }
     
     
@@ -217,7 +208,6 @@ addIN1ControlNode(UA_Server *server) {
     attr.accessLevel = UA_ACCESSLEVELMASK_READ | UA_ACCESSLEVELMASK_WRITE;
     
     UA_Int32 initialValue = 0;
-    current_IN1_value = initialValue; 
     UA_Variant_setScalar(&attr.value, &initialValue, &UA_TYPES[UA_TYPES_INT32]);
 
     UA_NodeId currentNodeId = UA_NODEID_STRING(1, "in1_control");
@@ -231,7 +221,7 @@ addIN1ControlNode(UA_Server *server) {
     in1DataSource.write = writeIN1Value;
     
     UA_Server_addDataSourceVariableNode(server, currentNodeId, parentNodeId,
-                                        parentNodeId, currentName,
+                                        parentReferenceNodeId, currentName,
                                         variableTypeNodeId, attr,
                                         in1DataSource, NULL, NULL);
 }
@@ -260,8 +250,9 @@ writeIN2Value(UA_Server *server,
     
     UA_Int32 value = *(UA_Int32*)data->value.data;
     
+    
     if (value < 1 || value > 12) {
-        return UA_STATUSCODE_BADOUTOFRANGE; 
+        return UA_STATUSCODE_BADOUTOFRANGE;
     }
     
     
@@ -282,7 +273,6 @@ addIN2ControlNode(UA_Server *server) {
     attr.accessLevel = UA_ACCESSLEVELMASK_READ | UA_ACCESSLEVELMASK_WRITE;
     
     UA_Int32 initialValue = 0;
-    current_IN2_value = initialValue; 
     UA_Variant_setScalar(&attr.value, &initialValue, &UA_TYPES[UA_TYPES_INT32]);
 
     UA_NodeId currentNodeId = UA_NODEID_STRING(1, "in2_control");
@@ -296,7 +286,7 @@ addIN2ControlNode(UA_Server *server) {
     in2DataSource.write = writeIN2Value;
     
     UA_Server_addDataSourceVariableNode(server, currentNodeId, parentNodeId,
-                                        parentNodeId, currentName,
+                                        parentReferenceNodeId, currentName,
                                         variableTypeNodeId, attr,
                                         in2DataSource, NULL, NULL);
 }
@@ -338,38 +328,7 @@ addUARTStatusNode(UA_Server *server) {
     statusDataSource.read = readUARTStatus;
     
     UA_Server_addDataSourceVariableNode(server, currentNodeId, parentNodeId,
-                                        parentNodeId, currentName,
+                                        parentReferenceNodeId, currentName,
                                         variableTypeNodeId, attr,
                                         statusDataSource, NULL, NULL);
-}
-
-void update_uart_status_string(const char* new_status) {
-   
-    if (last_uart_status.data != NULL) {
-        UA_String_clear(&last_uart_status);
-    }
-    last_uart_status = UA_String_fromChars(new_status);
-}
-
-
-void update_in_values_from_status(const char* status_response) {
-    int in1_val = -1;
-    int in2_val = -1;
-    
-    
-    int result = sscanf(status_response, "IN1=%d IN2=%d", &in1_val, &in2_val);
-
-  
-    if (result == 2) {
-      
-        if (in1_val >= 1 && in1_val <= 12) {
-            current_IN1_value = in1_val;
-        }
-        if (in2_val >= 1 && in2_val <= 12) {
-            current_IN2_value = in2_val;
-        }
-    }
-    
-    
-    update_uart_status_string(status_response);
 }

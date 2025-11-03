@@ -98,9 +98,9 @@ readUARTStatus(UA_Server *server,
 void
 addUARTStatusNode(UA_Server *server);
 
-/* Udostępnij zmienne globalne dla innych plików (np. opcua_esp32.c) */
+
 extern UA_Int32 current_IN1_value;
 extern UA_Int32 current_IN2_value;
 
-/* Deklaracja funkcji pomocniczej do aktualizacji statusu UART */
+
 void update_uart_status_string(const char* new_status);

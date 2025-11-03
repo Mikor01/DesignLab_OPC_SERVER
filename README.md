@@ -68,3 +68,8 @@ You can connect to the server using any OPC UA client (such as UAExpert or Prosy
 This project is built upon:
 - [open62541](https://github.com/open62541/open62541) - An open source OPC UA implementation
 - [opcua-esp32](https://github.com/cmbahadir/opcua-esp32) - ESP32 port by cmbahadir
+
+
+##Project Progress
+30.10.25 - initial commits and testing
+

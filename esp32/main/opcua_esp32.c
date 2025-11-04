@@ -1,6 +1,9 @@
 #include "opcua_esp32.h"
 
-#define EXAMPLE_ESP_MAXIMUM_RETRY 10
+extern UA_Int32 current_IN1_value; 
+extern UA_Int32 current_IN2_value; 
+extern UA_String last_uart_status; 
+void update_uart_status(const char* new_status); 
 
 #define TAG "OPCUA_ESP32"
 #define SNTP_TAG "SNTP"
@@ -32,7 +35,6 @@ static time_t now = 0;
 static UA_StatusCode
 UA_ServerConfig_setUriName(UA_ServerConfig *uaServerConfig, const char *uri, const char *name)
 {
-    // delete pre-initialized values
     UA_String_clear(&uaServerConfig->applicationDescription.applicationUri);
     UA_LocalizedText_clear(&uaServerConfig->applicationDescription.applicationName);
 
@@ -58,9 +60,8 @@ UA_ServerConfig_setUriName(UA_ServerConfig *uaServerConfig, const char *uri, con
 
 static void opcua_task(void *arg)
 {
-    // BufferSize's got to be decreased due to latest refactorings in open62541 v1.2rc.
-    UA_Int32 sendBufferSize = 16384;
-    UA_Int32 recvBufferSize = 16384;
+    UA_Int32 sendBufferSize = 8192;
+    UA_Int32 recvBufferSize = 8192;
 
     ESP_ERROR_CHECK(esp_task_wdt_add(NULL));
 
@@ -75,7 +76,6 @@ static void opcua_task(void *arg)
     UA_ServerConfig_setUriName(config, appUri, "OPC_UA_Server_ESP32");
     UA_ServerConfig_setCustomHostname(config, hostName);
 
-    /* Add Information Model Objects Here */
     addCurrentTemperatureDataSourceVariable(server);
     addRelay0ControlNode(server);
     addRelay1ControlNode(server);
@@ -158,7 +158,7 @@ static void opc_event_handler(void *arg, esp_event_base_t event_base,
 
     if (!isServerCreated)
     {
-        xTaskCreatePinnedToCore(opcua_task, "opcua_task", 8192, NULL, 6, NULL, 1);
+        xTaskCreatePinnedToCore(opcua_task, "opcua_task", 16384, NULL, 6, NULL, 1);
         ESP_LOGI(MEMORY_TAG, "Heap size after OPC UA Task : %d", esp_get_free_heap_size());
         isServerCreated = true;
     }
@@ -231,14 +231,11 @@ static void uart_bridge_task(void *arg)
         .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
     };
 
-    // Install the driver, allocating RX and TX buffers
     ESP_ERROR_CHECK(uart_driver_install(UART_DEVICE_NUM, UART_BUF_SIZE * 2, UART_BUF_SIZE * 2, 0, NULL, 0));
     ESP_ERROR_CHECK(uart_param_config(UART_DEVICE_NUM, &uart_config_device));
 
-    // Now, connect the UART peripheral to the correctly configured pins
     ESP_ERROR_CHECK(uart_set_pin(UART_DEVICE_NUM, TXD2_PIN, RXD2_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
 
-    // --- Buffers for communication ---
     uint8_t *device_data = (uint8_t *) malloc(UART_BUF_SIZE);
     static char pc_cmd_buffer[128];
     static int pc_cmd_index = 0;
@@ -264,16 +261,29 @@ static void uart_bridge_task(void *arg)
             }
         }
 
-        int len_device = uart_read_bytes(UART_DEVICE_NUM, device_data, UART_BUF_SIZE, 20 / portTICK_PERIOD_MS);
+       int len_device = uart_read_bytes(UART_DEVICE_NUM, device_data, UART_BUF_SIZE, 20 / portTICK_PERIOD_MS);
+        
         if (len_device > 0) {
             device_data[len_device] = '\0';
-            printf("<<< Device Response: [%s]\n", (char*)device_data);
-        }
-
-        // Yield CPU time to other tasks
-        vTaskDelay(20 / portTICK_PERIOD_MS);
-    }
+            char* response = (char*)device_data;
     
+            printf("<<< Device Response: [%s]\n", response);
+            
+            int in1_temp, in2_temp;
+            
+            int parsed = sscanf(response, "IN1=%d IN2=%d", &in1_temp, &in2_temp);
+
+            if (parsed == 2) {
+                current_IN1_value = in1_temp;
+                current_IN2_value = in2_temp;
+                ESP_LOGI(UART_TAG, "Parsed values: IN1=%d, IN2=%d", in1_temp, in2_temp);
+            }
+            update_uart_status(response);
+        }    
+
+        vTaskDelay(20 / portTICK_PERIOD_MS);
+
+    }
     free(device_data);
     uart_driver_delete(UART_DEVICE_NUM);
 }
@@ -281,7 +291,6 @@ static void uart_bridge_task(void *arg)
 void app_main(void)
 {
     ++boot_count;
-    // Workaround for CVE-2019-15894
     nvs_flash_init();
     if (esp_flash_encryption_enabled())
     {

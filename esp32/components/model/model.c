@@ -6,11 +6,14 @@
 #include <string.h>
 
 
-static UA_Int32 current_IN1_value = 0;
-static UA_Int32 current_IN2_value = 0;
-static UA_String last_uart_status = {0, NULL};
+UA_Int32 current_IN1_value = 0;
+UA_Int32 current_IN2_value = 0;
+UA_String last_uart_status = {0, NULL};
 
 extern const int UART_DEVICE_NUM;  
+
+void request_uart_status(void) {
+}
 
 static void configureGPIO();
 
@@ -154,11 +157,13 @@ addRelay1ControlNode(UA_Server *server) {
                                         relay1, NULL, NULL);
 }
 
-/* UART Command Functions */
 void send_uart_command_from_opcua(const char *cmd, int value) {
-    char buffer[32];
-    snprintf(buffer, sizeof(buffer), "SET %s %d\n", cmd, value);
-    uart_write_bytes(UART_DEVICE_NUM, buffer, strlen(buffer));
+    char buffer[64]; 
+
+    int len = snprintf(buffer, sizeof(buffer), "SET %s %d\n", cmd, value);
+    len += snprintf(buffer + len, sizeof(buffer) - len, "STATUS\n"); 
+    
+    uart_write_bytes(UART_DEVICE_NUM, buffer, len);
 }
 
 /* IN1 Control Node */
@@ -192,9 +197,6 @@ writeIN1Value(UA_Server *server,
     
     
     send_uart_command_from_opcua("IN1", value);
-    
-    
-    current_IN1_value = value;
     
     return UA_STATUSCODE_GOOD;
 }
@@ -258,9 +260,7 @@ writeIN2Value(UA_Server *server,
     
     send_uart_command_from_opcua("IN2", value);
     
-    
-    current_IN2_value = value;
-    
+    request_uart_status();
     return UA_STATUSCODE_GOOD;
 }
 
@@ -332,3 +332,11 @@ addUARTStatusNode(UA_Server *server) {
                                         variableTypeNodeId, attr,
                                         statusDataSource, NULL, NULL);
 }
+
+void update_uart_status(const char* new_status) {
+
+    UA_String_clear(&last_uart_status);
+    last_uart_status = UA_String_fromChars(new_status);
+}
+
+

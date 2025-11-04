@@ -200,12 +200,16 @@ static void process_pc_command(const char *command)
         snprintf(buffer, sizeof(buffer), "SET IN1 %d\n", value);
         ESP_LOGI(UART_TAG, "Forwarding command: %s", buffer);
         uart_write_bytes(UART_DEVICE_NUM, buffer, strlen(buffer));
+        vTaskDelay(100 / portTICK_PERIOD_MS);
+        uart_write_bytes(UART_DEVICE_NUM, "STATUS\n", 7);
 
     } else if (strcasecmp(cmd, "IN2") == 0 && parsed == 2) {
         char buffer[32];
         snprintf(buffer, sizeof(buffer), "SET IN2 %d\n", value);
         ESP_LOGI(UART_TAG, "Forwarding command: %s", buffer);
         uart_write_bytes(UART_DEVICE_NUM, buffer, strlen(buffer));
+        vTaskDelay(100 / portTICK_PERIOD_MS);
+        uart_write_bytes(UART_DEVICE_NUM, "STATUS\n", 7);
 
     } else {
         printf("ERROR: Unknown or invalid command '%s'\n", command);
@@ -267,7 +271,7 @@ static void uart_bridge_task(void *arg)
             device_data[len_device] = '\0';
             char* response = (char*)device_data;
     
-            printf("<<< Device Response: [%s]\n", response);
+            //printf("<<< Device Response: [%s]\n", response);
             
             int in1_temp, in2_temp;
             

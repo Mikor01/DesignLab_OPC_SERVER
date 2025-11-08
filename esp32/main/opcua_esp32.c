@@ -76,10 +76,8 @@ static void opcua_task(void *arg)
     UA_ServerConfig_setUriName(config, appUri, "OPC_UA_Server_ESP32");
     UA_ServerConfig_setCustomHostname(config, hostName);
 
-    addCurrentTemperatureDataSourceVariable(server);
     addRelay0ControlNode(server);
     addRelay1ControlNode(server);
-    
 
     addIN1ControlNode(server);
     addIN2ControlNode(server);
@@ -123,7 +121,7 @@ static bool obtain_time(void)
     ESP_ERROR_CHECK(esp_task_wdt_add(NULL));
     memset(&timeinfo, 0, sizeof(struct tm));
     int retry = 0;
-    const int retry_count = 10;
+    const int retry_count = 20;
     while (sntp_get_sync_status() == SNTP_SYNC_STATUS_RESET && ++retry <= retry_count)
     {
         ESP_LOGI(SNTP_TAG, "Waiting for system time to be set... (%d/%d)", retry, retry_count);
@@ -270,8 +268,6 @@ static void uart_bridge_task(void *arg)
         if (len_device > 0) {
             device_data[len_device] = '\0';
             char* response = (char*)device_data;
-    
-            //printf("<<< Device Response: [%s]\n", response);
             
             int in1_temp, in2_temp;
             

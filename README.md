@@ -71,6 +71,6 @@ This project is built upon:
 
 
 ## Project Progress
-30.10.25 - initial commits and testing
+30.10.25 - initial commits and testing  
 06.11.25 - Added basic UART functionalities
 

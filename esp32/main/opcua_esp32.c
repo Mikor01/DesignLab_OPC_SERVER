@@ -194,7 +194,7 @@ static void process_pc_command(const char *command)
 
     if (strcasecmp(command, "help") == 0) {
         printf("\n=== Available Commands (Pico Format) ===\n");
-        printf("in <1-2> out <1-12>  - Set input to output\n");
+        printf("in <1-2> out <0-15>  - Set input to output\n");
         printf("in <1-2> off          - Turn off input\n");
         printf("release               - Release controller\n");
         printf("clear                 - Clear display\n");
@@ -313,13 +313,13 @@ static void uart_bridge_task(void *arg)
 
             if (parsed == 2) {
                 if (strcmp(in1_str, "OFF") == 0) {
-                    current_IN1_value = 0;
+                    current_IN1_value = -1;
                 } else {
                     current_IN1_value = atoi(in1_str);
                 }
                 
                 if (strcmp(in2_str, "OFF") == 0) {
-                    current_IN2_value = 0;
+                    current_IN2_value = -1;
                 } else {
                     current_IN2_value = atoi(in2_str);
                 }

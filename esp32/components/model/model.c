@@ -131,17 +131,17 @@ addRelay1ControlNode(UA_Server *server) {
 /**
  * @brief Sends a Pico-format command to Arduino via UART.
  * @param input_channel (1 or 2)
- * @param output_value (0=OFF, 1-12=OUT)
+ * @param output_value (-1=OFF, 0-15=OUT)
  */
 void send_uart_command_from_opcua(int input_channel, int output_value) {
     char buffer[64];
     int len;
    
-    if (output_value == 0) {
+    if (output_value == -1) {
         // "in <1-2> off"
         len = snprintf(buffer, sizeof(buffer), "in %d off\n", input_channel);
     } else if (output_value >= 1 && output_value <= 12) {
-        // "in <1-2> out <1-12>"
+        // "in <1-2> out <0-15>"
         len = snprintf(buffer, sizeof(buffer), "in %d out %d\n", input_channel, output_value);
     } else {
         // Invalid value
@@ -184,8 +184,8 @@ writeIN1Value(UA_Server *server,
    
     UA_Int32 value = *(UA_Int32*)data->value.data;
    
-    // 0=OFF, 1-12=OUT
-    if (value < 0 || value > 12) {
+    // -1=OFF, 0-15=OUT
+    if (value <= 0 || value >= 15) {
         return UA_STATUSCODE_BADOUTOFRANGE;
     }
    
@@ -222,7 +222,7 @@ void
 addIN1ControlNode(UA_Server *server) {
     UA_VariableAttributes attr = UA_VariableAttributes_default;
     attr.displayName = UA_LOCALIZEDTEXT("en-US", "IN1 Control");
-    attr.description = UA_LOCALIZEDTEXT("en-US", "Control IN1 output (0=OFF, 1-12=OUTPUT)");
+    attr.description = UA_LOCALIZEDTEXT("en-US", "Control IN1 output (-1=OFF, 0-15=OUTPUT)");
     attr.dataType = UA_TYPES[UA_TYPES_INT32].typeId;
     attr.accessLevel = UA_ACCESSLEVELMASK_READ | UA_ACCESSLEVELMASK_WRITE;
    
@@ -270,8 +270,8 @@ writeIN2Value(UA_Server *server,
    
     UA_Int32 value = *(UA_Int32*)data->value.data;
    
-    // 0=OFF, 1-12=OUT
-    if (value < 0 || value > 12) {
+    // -1=OFF, 0-15=OUT
+    if (value <= 0 || value >= 15) {
         return UA_STATUSCODE_BADOUTOFRANGE;
     }
 
@@ -308,7 +308,7 @@ void
 addIN2ControlNode(UA_Server *server) {
     UA_VariableAttributes attr = UA_VariableAttributes_default;
     attr.displayName = UA_LOCALIZEDTEXT("en-US", "IN2 Control");
-    attr.description = UA_LOCALIZEDTEXT("en-US", "Control IN2 output (0=OFF, 1-12=OUTPUT)");
+    attr.description = UA_LOCALIZEDTEXT("en-US", "Control IN2 output (-1=OFF, 0-15=OUTPUT)");
     attr.dataType = UA_TYPES[UA_TYPES_INT32].typeId;
     attr.accessLevel = UA_ACCESSLEVELMASK_READ | UA_ACCESSLEVELMASK_WRITE;
    

@@ -1,100 +1,63 @@
+/*
+ * Header file for the OPC-UA server data model.
+ * Defines nodes, data sources, and public variables.
+ */
+#ifndef MODEL_H
+#define MODEL_H
+
 #include "open62541.h"
 
-/* GPIO Numbers */
-#define DHT22_GPIO 4
+/* GPIO numbers for relays */
 #define RELAY_0_GPIO 32
 #define RELAY_1_GPIO 33
 
-/* Temperature */
-UA_StatusCode
-readCurrentTemperature(UA_Server *server,
-                const UA_NodeId *sessionId, void *sessionContext,
-                const UA_NodeId *nodeId, void *nodeContext,
-                UA_Boolean sourceTimeStamp, const UA_NumericRange *range,
-                UA_DataValue *dataValue);
+/*
+ * Global variables holding the current state for OPC-UA.
+ * Declared here as 'extern' and defined in model.c.
+ * 'volatile' is used as they are modified in the UART
+ * task and read in the OPC-UA task.
+ */
+extern volatile UA_Int32 current_IN1_value;
+extern volatile UA_Int32 current_IN2_value;
+extern UA_String last_uart_status;
 
-void
-addCurrentTemperatureDataSourceVariable(UA_Server *server);
 
-/* Relay 0 */
-UA_StatusCode
-readRelay0State(UA_Server *server,
-                const UA_NodeId *sessionId, void *sessionContext,
-                const UA_NodeId *nodeId, void *nodeContext,
-                UA_Boolean sourceTimeStamp, const UA_NumericRange *range,
-                UA_DataValue *dataValue);
+/*
+ * Public functions to add nodes to the OPC-UA server.
+ * Called from opcua_task in opcua_esp32.c
+ */
 
-UA_StatusCode
-setRelay0State(UA_Server *server,
-                  const UA_NodeId *sessionId, void *sessionContext,
-                  const UA_NodeId *nodeId, void *nodeContext,
-                 const UA_NumericRange *range, const UA_DataValue *data);
+/**
+ * @brief Adds the Relay 0 control node to the OPC-UA server.
+ */
+void addRelay0ControlNode(UA_Server *server);
 
-void
-addRelay0ControlNode(UA_Server *server);
+/**
+ * @brief Adds the Relay 1 control node to the OPC-UA server.
+ */
+void addRelay1ControlNode(UA_Server *server);
 
-/* Relay 1 */
-UA_StatusCode
-readRelay1State(UA_Server *server,
-                const UA_NodeId *sessionId, void *sessionContext,
-                const UA_NodeId *nodeId, void *nodeContext,
-                UA_Boolean sourceTimeStamp, const UA_NumericRange *range,
-                UA_DataValue *dataValue);
+/**
+ * @brief Adds the IN1 control node (from UART) to the OPC-UA server.
+ */
+void addIN1ControlNode(UA_Server *server);
 
-UA_StatusCode
-setRelay1State(UA_Server *server,
-                  const UA_NodeId *sessionId, void *sessionContext,
-                  const UA_NodeId *nodeId, void *nodeContext,
-                 const UA_NumericRange *range, const UA_DataValue *data);
+/**
+ * @brief Adds the IN2 control node (from UART) to the OPC-UA server.
+ */
+void addIN2ControlNode(UA_Server *server);
 
-void
-addRelay1ControlNode(UA_Server *server);
+/**
+ * @brief Adds the (read-only) node for the last UART status.
+ */
+void addUARTStatusNode(UA_Server *server);
 
-/* UART Command Functions */
-void send_uart_command_from_opcua(const char *cmd, int value);
+/**
+ * @brief Updates the global UA_String (last_uart_status)
+ * with a new status from UART.
+ * @param new_status C-string with the new status.
+ */
+void update_uart_status(const char* new_status);
 
-/* IN1 Control */
-UA_StatusCode
-readIN1Value(UA_Server *server,
-             const UA_NodeId *sessionId, void *sessionContext,
-             const UA_NodeId *nodeId, void *nodeContext,
-             UA_Boolean sourceTimeStamp, const UA_NumericRange *range,
-             UA_DataValue *dataValue);
 
-UA_StatusCode
-writeIN1Value(UA_Server *server,
-              const UA_NodeId *sessionId, void *sessionContext,
-              const UA_NodeId *nodeId, void *nodeContext,
-              const UA_NumericRange *range, const UA_DataValue *data);
-
-void
-addIN1ControlNode(UA_Server *server);
-
-/* IN2 Control */
-UA_StatusCode
-readIN2Value(UA_Server *server,
-             const UA_NodeId *sessionId, void *sessionContext,
-             const UA_NodeId *nodeId, void *nodeContext,
-             UA_Boolean sourceTimeStamp, const UA_NumericRange *range,
-             UA_DataValue *dataValue);
-
-UA_StatusCode
-writeIN2Value(UA_Server *server,
-              const UA_NodeId *sessionId, void *sessionContext,
-              const UA_NodeId *nodeId, void *nodeContext,
-              const UA_NumericRange *range, const UA_DataValue *data);
-
-void
-addIN2ControlNode(UA_Server *server);
-
-/* UART Status */
-UA_StatusCode
-readUARTStatus(UA_Server *server,
-               const UA_NodeId *sessionId, void *sessionContext,
-               const UA_NodeId *nodeId, void *nodeContext,
-               UA_Boolean sourceTimeStamp, const UA_NumericRange *range,
-               UA_DataValue *dataValue);
-
-void
-addUARTStatusNode(UA_Server *server);
-
+#endif // MODEL_H

@@ -1,10 +1,5 @@
 #include "opcua_esp32.h"
 
-extern UA_Int32 current_IN1_value; 
-extern UA_Int32 current_IN2_value; 
-extern UA_String last_uart_status; 
-void update_uart_status(const char* new_status); 
-
 #define TAG "OPCUA_ESP32"
 #define SNTP_TAG "SNTP"
 #define MEMORY_TAG "MEMORY"
@@ -12,14 +7,7 @@ void update_uart_status(const char* new_status);
 
 #define UART_TAG "UART_BRIDGE"
 
-// UART Bridge Configuration
-#define UART_PC_NUM         (UART_NUM_0)
-const int UART_DEVICE_NUM = UART_NUM_2; 
-#define UART_BUF_SIZE       (1024)
-
-// Pinout for UART2 (to external device)
-#define TXD2_PIN            (GPIO_NUM_17)
-#define RXD2_PIN            (GPIO_NUM_16)
+const int UART_DEVICE_NUM = UART_NUM_2;
 
 static bool obtain_time(void);
 static void initialize_sntp(void);
@@ -78,22 +66,42 @@ static void opcua_task(void *arg)
 
     addRelay0ControlNode(server);
     addRelay1ControlNode(server);
-
     addIN1ControlNode(server);
     addIN2ControlNode(server);
     addUARTStatusNode(server);
 
     ESP_LOGI(TAG, "Heap Left : %d", xPortGetFreeHeapSize());
     UA_StatusCode retval = UA_Server_run_startup(server);
+    
+    static UA_Int32 opcua_known_in1 = 0;
+    static UA_Int32 opcua_known_in2 = 0;
+    UA_DataValue data_value;
+    UA_DataValue_init(&data_value);
+    data_value.hasValue = true;
+
     if (retval == UA_STATUSCODE_GOOD)
     {
         while (running)
         {
             UA_Server_run_iterate(server, false);
+
+            if (current_IN1_value != opcua_known_in1) {
+                opcua_known_in1 = current_IN1_value;
+                UA_Variant_setScalar(&data_value.value, &opcua_known_in1, &UA_TYPES[UA_TYPES_INT32]);
+                UA_Server_writeDataValue(server, UA_NODEID_STRING(1, "in1_control"), data_value);
+            }
+            
+            if (current_IN2_value != opcua_known_in2) {
+                opcua_known_in2 = current_IN2_value;
+                UA_Variant_setScalar(&data_value.value, &opcua_known_in2, &UA_TYPES[UA_TYPES_INT32]);
+                UA_Server_writeDataValue(server, UA_NODEID_STRING(1, "in2_control"), data_value);
+            }
+
             vTaskDelay(100 / portTICK_PERIOD_MS);
             ESP_ERROR_CHECK(esp_task_wdt_reset());
             taskYIELD();
         }
+        UA_DataValue_clear(&data_value);
         UA_Server_run_shutdown(server);
     }
     ESP_ERROR_CHECK(esp_task_wdt_delete(NULL));
@@ -149,8 +157,8 @@ static void opc_event_handler(void *arg, esp_event_base_t event_base,
             time(&now);
         }
         localtime_r(&now, &timeinfo);
-        ESP_LOGI(SNTP_TAG, "Current time: %d-%02d-%02d %02d:%02d:%02d", 
-                 timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday, 
+        ESP_LOGI(SNTP_TAG, "Current time: %d-%02d-%02d %02d:%02d:%02d",
+                 timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
                  timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
     }
 
@@ -180,51 +188,66 @@ static void process_pc_command(const char *command)
 {
     ESP_LOGI(UART_TAG, "Processing command: [%s]", command);
 
-    // Simple parser for commands like "IN1 5", "IN2 10", "PING", "STATUS"
-    char cmd[16];
-    int value = 0;
-    int parsed = sscanf(command, "%15s %d", cmd, &value);
+    if (strlen(command) == 0) {
+        return;
+    }
 
-    if (strcasecmp(cmd, "PING") == 0) {
-        printf("PONG\n");
-        uart_write_bytes(UART_DEVICE_NUM, "PING\n", 5);
+    if (strcasecmp(command, "help") == 0) {
+        printf("\n=== Available Commands (Pico Format) ===\n");
+        printf("in <1-2> out <1-12>  - Set input to output\n");
+        printf("in <1-2> off          - Turn off input\n");
+        printf("release               - Release controller\n");
+        printf("clear                 - Clear display\n");
+        printf("draw                  - Redraw display\n");
+        printf("screen                - Enable screensaver\n");
+        printf("STATUS                - Get current status\n");
+        printf("\nExamples:\n");
+        printf("  in 1 out 5          - Set IN1 to OUT5\n");
+        printf("  in 2 out 12         - Set IN2 to OUT12\n");
+        printf("  in 1 off            - Turn off IN1\n");
+        printf("========================================\n\n");
+        return;
+    }
 
-    } else if (strcasecmp(cmd, "STATUS") == 0) {
+    if (strcasecmp(command, "STATUS") == 0) {
         ESP_LOGI(UART_TAG, "Requesting status from Arduino");
         uart_write_bytes(UART_DEVICE_NUM, "STATUS\n", 7);
+        return;
+    }
 
-    } else if (strcasecmp(cmd, "IN1") == 0 && parsed == 2) {
-        char buffer[32];
-        snprintf(buffer, sizeof(buffer), "SET IN1 %d\n", value);
-        ESP_LOGI(UART_TAG, "Forwarding command: %s", buffer);
+    char cmd_lower[16];
+    strncpy(cmd_lower, command, 15);
+    cmd_lower[15] = '\0';
+    
+    for (int i = 0; cmd_lower[i] && cmd_lower[i] != ' '; i++) {
+        cmd_lower[i] = tolower(cmd_lower[i]);
+    }
+
+    if (strncmp(cmd_lower, "in ", 3) == 0 ||
+        strcmp(cmd_lower, "off") == 0 ||
+        strcmp(cmd_lower, "release") == 0 ||
+        strcmp(cmd_lower, "clear") == 0 ||
+        strcmp(cmd_lower, "draw") == 0 ||
+        strcmp(cmd_lower, "screen") == 0) {
+        
+        char buffer[128];
+        snprintf(buffer, sizeof(buffer), "%s\n", command);
+        ESP_LOGI(UART_TAG, "Forwarding to Arduino: %s", command);
         uart_write_bytes(UART_DEVICE_NUM, buffer, strlen(buffer));
-        vTaskDelay(100 / portTICK_PERIOD_MS);
+        
+        vTaskDelay(150 / portTICK_PERIOD_MS);
+        
+        ESP_LOGI(UART_TAG, "Auto-requesting status after command");
         uart_write_bytes(UART_DEVICE_NUM, "STATUS\n", 7);
-
-    } else if (strcasecmp(cmd, "IN2") == 0 && parsed == 2) {
-        char buffer[32];
-        snprintf(buffer, sizeof(buffer), "SET IN2 %d\n", value);
-        ESP_LOGI(UART_TAG, "Forwarding command: %s", buffer);
-        uart_write_bytes(UART_DEVICE_NUM, buffer, strlen(buffer));
-        vTaskDelay(100 / portTICK_PERIOD_MS);
-        uart_write_bytes(UART_DEVICE_NUM, "STATUS\n", 7);
-
+        
     } else {
-        printf("ERROR: Unknown or invalid command '%s'\n", command);
-        printf("Usage:\n  IN1 <1-12>\n  IN2 <1-12>\n  STATUS\n  PING\n");
+        printf("ERROR: Unknown command '%s'\n", command);
+        printf("Type 'help' for available commands\n");
     }
 }
 
-/**
- * @brief The main task for handling UART communication.
- * 
- * This task does two things in its main loop:
- * 1. Assembles complete command lines from the PC (stdin) and processes them.
- * 2. Reads and displays any asynchronous responses from the external device (UART2).
- */
 static void uart_bridge_task(void *arg)
 {
-    // --- UART2 (Device) Configuration ---
     uart_config_t uart_config_device = {
         .baud_rate = 9600,
         .data_bits = UART_DATA_8_BITS,
@@ -235,15 +258,18 @@ static void uart_bridge_task(void *arg)
 
     ESP_ERROR_CHECK(uart_driver_install(UART_DEVICE_NUM, UART_BUF_SIZE * 2, UART_BUF_SIZE * 2, 0, NULL, 0));
     ESP_ERROR_CHECK(uart_param_config(UART_DEVICE_NUM, &uart_config_device));
-
     ESP_ERROR_CHECK(uart_set_pin(UART_DEVICE_NUM, TXD2_PIN, RXD2_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
 
     uint8_t *device_data = (uint8_t *) malloc(UART_BUF_SIZE);
     static char pc_cmd_buffer[128];
     static int pc_cmd_index = 0;
 
-    ESP_LOGI(UART_TAG, "UART Command Processor Initialized.");
-    printf("Ready for commands (PING, STATUS, IN1 <1-12>, IN2 <1-12>)\n");
+    ESP_LOGI(UART_TAG, "UART Command Processor Initialized (Pico Format)");
+    printf("\n===========================================\n");
+    printf("  Arduino Multiplexer Controller Ready\n");
+    printf("===========================================\n");
+    printf("Type 'help' for available commands\n");
+    printf("> ");
 
     while (1) {
         char c;
@@ -253,37 +279,64 @@ static void uart_bridge_task(void *arg)
             if (c == '\n' || c == '\r') {
                 pc_cmd_buffer[pc_cmd_index] = '\0';
                 if (pc_cmd_index > 0) {
+                    printf("\n");
                     process_pc_command(pc_cmd_buffer);
                 }
                 pc_cmd_index = 0;
+                printf("> ");
+                fflush(stdout);
+            } else if (c == '\x7F' || c == '\x08') {
+                if (pc_cmd_index > 0) {
+                    printf("\b \b");
+                    fflush(stdout);
+                    pc_cmd_index--;
+                }
             } else {
                 if (pc_cmd_index < (sizeof(pc_cmd_buffer) - 1)) {
                     pc_cmd_buffer[pc_cmd_index++] = c;
+                    printf("%c", c);
+                    fflush(stdout);
                 }
             }
         }
 
-       int len_device = uart_read_bytes(UART_DEVICE_NUM, device_data, UART_BUF_SIZE, 20 / portTICK_PERIOD_MS);
+        int len_device = uart_read_bytes(UART_DEVICE_NUM, device_data, UART_BUF_SIZE, 20 / portTICK_PERIOD_MS);
         
         if (len_device > 0) {
             device_data[len_device] = '\0';
             char* response = (char*)device_data;
             
-            int in1_temp, in2_temp;
+            printf("\nArduino: %s\n", response);
             
-            int parsed = sscanf(response, "IN1=%d IN2=%d", &in1_temp, &in2_temp);
+            char in1_str[16], in2_str[16];
+            int parsed = sscanf(response, "IN1=%15s IN2=%15s", in1_str, in2_str);
 
             if (parsed == 2) {
-                current_IN1_value = in1_temp;
-                current_IN2_value = in2_temp;
-                ESP_LOGI(UART_TAG, "Parsed values: IN1=%d, IN2=%d", in1_temp, in2_temp);
+                if (strcmp(in1_str, "OFF") == 0) {
+                    current_IN1_value = 0;
+                } else {
+                    current_IN1_value = atoi(in1_str);
+                }
+                
+                if (strcmp(in2_str, "OFF") == 0) {
+                    current_IN2_value = 0;
+                } else {
+                    current_IN2_value = atoi(in2_str);
+                }
+                
+                ESP_LOGI(UART_TAG, "Status updated: IN1=%d, IN2=%d",
+                         current_IN1_value, current_IN2_value);
             }
+            
             update_uart_status(response);
-        }    
+            
+            printf("> ");
+            fflush(stdout);
+        }
 
         vTaskDelay(20 / portTICK_PERIOD_MS);
-
     }
+    
     free(device_data);
     uart_driver_delete(UART_DEVICE_NUM);
 }

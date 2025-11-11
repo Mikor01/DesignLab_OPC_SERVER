@@ -1,4 +1,3 @@
-
 // Compatible with ESP32 OPC-UA bridge
 
 #include <AltSoftSerial.h>
@@ -18,7 +17,8 @@ LiquidCrystal lcd(7, 6, 5, 4, 3, 2);
 
 AltSoftSerial espSerial; // RX=8, TX=9
 
-const byte outputPins[12] = {A0, A1, A2, A3, A4, A5, A6, A7, 10, 11, 12, 13};
+
+const byte outputPins[16] = {A0, A1, A2, A3, A4, A5, A6, A7, 10, 11, 12, 13, 22, 23, 24, 25};
 
 int channel_out0 = -1;
 int channel_out1 = -1;
@@ -43,20 +43,21 @@ void setup() {
   lcd.print("IN1: OFF");
   lcd.setCursor(0, 1);
   lcd.print("IN2: OFF");
-  
-  for (int i = 0; i < 12; i++) {
+
+  // Ustaw wszystkie wyjścia
+  for (int i = 0; i < 16; i++) {
     pinMode(outputPins[i], OUTPUT);
     digitalWrite(outputPins[i], LOW);
   }
-  
+
   Serial.println("Arduino Multiplexer Simulator Ready");
-  Serial.println("Commands: in <1-2> out <1-12>, in <1-2> off, release, clear, draw, screen");
+  Serial.println("Commands: in <1-2> out <0-15>, in <1-2> off, release, clear, draw, screen");
 }
 
 void loop() {
   if (espSerial.available()) {
     char c = espSerial.read();
-    
+
     if (c == '\n' || c == '\r') {
       if (cmdIndex > 0) {
         cmdBuffer[cmdIndex] = '\0';
@@ -67,10 +68,10 @@ void loop() {
       cmdBuffer[cmdIndex++] = c;
     }
   }
-  
+
   if (Serial.available()) {
     char c = Serial.read();
-    
+
     if (c == '\n' || c == '\r') {
       if (cmdIndex > 0) {
         cmdBuffer[cmdIndex] = '\0';
@@ -90,13 +91,13 @@ void processCommand(char* input, bool fromESP) {
     Serial.print("Serial cmd: ");
   }
   Serial.println(input);
-  
+
   char* token = strtok(input, " ");
   bool updateNeeded = false;
   bool commandOK = true;
-  
+
   while (token != NULL && commandOK) {
-    
+
     if (strcmp(token, "in") == 0) {
       token = strtok(NULL, " ");
       if (token == NULL) {
@@ -104,19 +105,20 @@ void processCommand(char* input, bool fromESP) {
         commandOK = false;
         break;
       }
-      
-      int value = atoi(token) - 1;
-      
-      if (value < 0 || value > 1) {
+
+      int value = atoi(token);
+
+
+      if (value < 1 || value > 2) {
         sendResponse("ERROR: Invalid input channel (use 1 or 2)", fromESP);
         commandOK = false;
         break;
       }
-      
-      current_input_channel = value;
+
+      current_input_channel = value - 1;  // 1 → 0, 2 → 1
       updateNeeded = true;
     }
-    
+
     else if (strcmp(token, "out") == 0) {
       token = strtok(NULL, " ");
       if (token == NULL) {
@@ -124,24 +126,24 @@ void processCommand(char* input, bool fromESP) {
         commandOK = false;
         break;
       }
-      
-      int value = atoi(token) - 1;
-      
-      if (value < 0 || value > 11) {
-        sendResponse("ERROR: Invalid output (use 1-12)", fromESP);
+
+      int value = atoi(token);
+
+      if (value < 0 || value > 15) {
+        sendResponse("ERROR: Invalid output (use 0-15)", fromESP);
         commandOK = false;
         break;
       }
-      
+
       if (current_input_channel == 0) {
         channel_out0 = value;
       } else if (current_input_channel == 1) {
         channel_out1 = value;
       }
-      
+
       updateNeeded = true;
     }
-    
+
     else if (strcmp(token, "off") == 0) {
       if (current_input_channel == 0) {
         channel_out0 = -1;
@@ -150,35 +152,35 @@ void processCommand(char* input, bool fromESP) {
       }
       updateNeeded = true;
     }
-    
+
     else if (strcmp(token, "release") == 0) {
       sendResponse("OK: Released", fromESP);
       updateNeeded = true;
     }
-    
+
     else if (strcmp(token, "clear") == 0) {
       lcd.clear();
       sendResponse("OK: Display cleared", fromESP);
     }
-    
+
     else if (strcmp(token, "draw") == 0) {
       updateLCD();
       sendResponse("OK: Display redrawn", fromESP);
     }
-    
+
     else if (strcmp(token, "screen") == 0) {
       lcd.clear();
       lcd.print("Screensaver ON");
       sendResponse("OK: Screensaver enabled", fromESP);
     }
-    
+
     else if (strcmp(token, "STATUS") == 0) {
       sendStatus(fromESP);
       commandOK = true;
       token = NULL;
       continue;
     }
-    
+
     else {
       String errorMsg = "ERROR: Unknown command '";
       errorMsg += token;
@@ -187,10 +189,10 @@ void processCommand(char* input, bool fromESP) {
       commandOK = false;
       break;
     }
-    
+
     token = strtok(NULL, " ");
   }
-  
+
   if (commandOK) {
     if (updateNeeded) {
       updateOutputs();
@@ -210,10 +212,10 @@ void sendResponse(const char* msg, bool toESP) {
 
 void sendStatus(bool toESP) {
   String statusMsg = "IN1=";
-  statusMsg += (channel_out0 >= 0) ? String(channel_out0 + 1) : "OFF";
+  statusMsg += (channel_out0 >= 0) ? String(channel_out0) : "OFF";
   statusMsg += " IN2=";
-  statusMsg += (channel_out1 >= 0) ? String(channel_out1 + 1) : "OFF";
-  
+  statusMsg += (channel_out1 >= 0) ? String(channel_out1) : "OFF";
+
   if (toESP) {
     espSerial.println(statusMsg);
   }
@@ -225,31 +227,31 @@ void updateLCD() {
   lcd.setCursor(0, 0);
   lcd.print("IN1: ");
   if (channel_out0 >= 0) {
-    lcd.print(channel_out0 + 1);
+    lcd.print(channel_out0);
   } else {
     lcd.print("OFF");
   }
-  
+
   lcd.setCursor(0, 1);
   lcd.print("IN2: ");
   if (channel_out1 >= 0) {
-    lcd.print(channel_out1 + 1);
+    lcd.print(channel_out1);
   } else {
     lcd.print("OFF");
   }
 }
 
 void updateOutputs() {
-  // Turn all outputs off first
-  for (int i = 0; i < 12; i++) {
-    digitalWrite(outputPins[i], LOW);
+  for (int i = 0; i < 16; i++) {
+    if (i != channel_out0 && i != channel_out1) {
+      digitalWrite(outputPins[i], LOW);
+    }
   }
-  
-  // Activate selected outputs - both inputs can use same output
-  if (channel_out0 >= 0 && channel_out0 <= 11) {
+
+  if (channel_out0 >= 0 && channel_out0 <= 15) {
     digitalWrite(outputPins[channel_out0], HIGH);
   }
-  if (channel_out1 >= 0 && channel_out1 <= 11) {
+  if (channel_out1 >= 0 && channel_out1 <= 15) {
     digitalWrite(outputPins[channel_out1], HIGH);
   }
 }

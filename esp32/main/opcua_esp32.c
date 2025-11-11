@@ -56,6 +56,8 @@ static void opcua_task(void *arg)
     ESP_LOGI(TAG, "Fire up OPC UA Server.");
     UA_Server *server = UA_Server_new();
     UA_ServerConfig *config = UA_Server_getConfig(server);
+
+    ESP_LOGI(TAG, "Ustawiono maxSessions na: %d", (int)config->maxSessions);
     UA_ServerConfig_setMinimalCustomBuffer(config, 4840, 0, sendBufferSize, recvBufferSize);
 
     const char *appUri = "open62541.esp32.server";
@@ -63,7 +65,7 @@ static void opcua_task(void *arg)
     
     UA_ServerConfig_setUriName(config, appUri, "OPC_UA_Server_ESP32");
     UA_ServerConfig_setCustomHostname(config, hostName);
-
+    config->maxSessions = 1;
     addRelay0ControlNode(server);
     addRelay1ControlNode(server);
     addIN1ControlNode(server);
@@ -83,8 +85,10 @@ static void opcua_task(void *arg)
     {
         while (running)
         {
-            UA_Server_run_iterate(server, false);
 
+            UA_Server_run_iterate(server, false);
+            /*UA_ServerStatistics stats = UA_Server_getStatistics(server);
+            ESP_LOGI(TAG, "Aktualna liczba sesji: %zu", stats.ss.currentSessionCount);*/ // check how many sessions are connected
             if (current_IN1_value != opcua_known_in1) {
                 opcua_known_in1 = current_IN1_value;
                 UA_Variant_setScalar(&data_value.value, &opcua_known_in1, &UA_TYPES[UA_TYPES_INT32]);

@@ -140,7 +140,7 @@ void send_uart_command_from_opcua(int input_channel, int output_value) {
     if (output_value == -1) {
         // "in <1-2> off"
         len = snprintf(buffer, sizeof(buffer), "in %d off\n", input_channel);
-    } else if (output_value >= 1 && output_value <= 12) {
+    } else if (output_value >= 0 && output_value < 16) {
         // "in <1-2> out <0-15>"
         len = snprintf(buffer, sizeof(buffer), "in %d out %d\n", input_channel, output_value);
     } else {
@@ -157,7 +157,7 @@ void send_uart_command_from_opcua(int input_channel, int output_value) {
     // Request status update
     const char *status_cmd = "STATUS\n";
     uart_write_bytes(UART_DEVICE_NUM, status_cmd, strlen(status_cmd));
-}
+} 
 
 
 /* --- IN1 Control Node --- */
@@ -185,7 +185,7 @@ writeIN1Value(UA_Server *server,
     UA_Int32 value = *(UA_Int32*)data->value.data;
    
     // -1=OFF, 0-15=OUT
-    if (value <= 0 || value >= 15) {
+    if (value <= -1 || value > 15) {
         return UA_STATUSCODE_BADOUTOFRANGE;
     }
    
@@ -271,7 +271,7 @@ writeIN2Value(UA_Server *server,
     UA_Int32 value = *(UA_Int32*)data->value.data;
    
     // -1=OFF, 0-15=OUT
-    if (value <= 0 || value >= 15) {
+    if (value <= -1 || value > 15) {
         return UA_STATUSCODE_BADOUTOFRANGE;
     }
 

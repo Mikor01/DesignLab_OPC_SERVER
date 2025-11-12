@@ -66,17 +66,15 @@ static void opcua_task(void *arg)
     UA_ServerConfig_setUriName(config, appUri, "OPC_UA_Server_ESP32");
     UA_ServerConfig_setCustomHostname(config, hostName);
     config->maxSessions = 1;
-    addRelay0ControlNode(server);
-    addRelay1ControlNode(server);
+    addIN0ControlNode(server);
     addIN1ControlNode(server);
-    addIN2ControlNode(server);
     addUARTStatusNode(server);
 
     ESP_LOGI(TAG, "Heap Left : %d", xPortGetFreeHeapSize());
     UA_StatusCode retval = UA_Server_run_startup(server);
     
-    static UA_Int32 opcua_known_in1 = 0;
-    static UA_Int32 opcua_known_in2 = 0;
+    static UA_Int32 opcua_known_IN0 = 0;
+    static UA_Int32 opcua_known_IN1 = 0;
     UA_DataValue data_value;
     UA_DataValue_init(&data_value);
     data_value.hasValue = true;
@@ -89,16 +87,16 @@ static void opcua_task(void *arg)
             UA_Server_run_iterate(server, false);
             /*UA_ServerStatistics stats = UA_Server_getStatistics(server);
             ESP_LOGI(TAG, "Aktualna liczba sesji: %zu", stats.ss.currentSessionCount);*/ // check how many sessions are connected
-            if (current_IN1_value != opcua_known_in1) {
-                opcua_known_in1 = current_IN1_value;
-                UA_Variant_setScalar(&data_value.value, &opcua_known_in1, &UA_TYPES[UA_TYPES_INT32]);
-                UA_Server_writeDataValue(server, UA_NODEID_STRING(1, "in1_control"), data_value);
+            if (current_IN0_value != opcua_known_IN0) {
+                opcua_known_IN0 = current_IN0_value;
+                UA_Variant_setScalar(&data_value.value, &opcua_known_IN0, &UA_TYPES[UA_TYPES_INT32]);
+                UA_Server_writeDataValue(server, UA_NODEID_STRING(1, "IN0_control"), data_value);
             }
             
-            if (current_IN2_value != opcua_known_in2) {
-                opcua_known_in2 = current_IN2_value;
-                UA_Variant_setScalar(&data_value.value, &opcua_known_in2, &UA_TYPES[UA_TYPES_INT32]);
-                UA_Server_writeDataValue(server, UA_NODEID_STRING(1, "in2_control"), data_value);
+            if (current_IN1_value != opcua_known_IN1) {
+                opcua_known_IN1 = current_IN1_value;
+                UA_Variant_setScalar(&data_value.value, &opcua_known_IN1, &UA_TYPES[UA_TYPES_INT32]);
+                UA_Server_writeDataValue(server, UA_NODEID_STRING(1, "IN1_control"), data_value);
             }
 
             vTaskDelay(100 / portTICK_PERIOD_MS);
@@ -119,11 +117,11 @@ void time_sync_notification_cb(struct timeval *tv)
 static void initialize_sntp(void)
 {
     ESP_LOGI(SNTP_TAG, "Initializing SNTP");
-    sntp_setoperatingmode(SNTP_OPMODE_POLL);
-    sntp_setservername(0, "pool.ntp.org");
-    sntp_setservername(1, "time.google.com");
+    esp_sntp_setoperatingmode(SNTP_OPMODE_POLL);
+    esp_sntp_setservername(0, "pool.ntp.org");
+    esp_sntp_setservername(1, "time.google.com");
     sntp_set_time_sync_notification_cb(time_sync_notification_cb);
-    sntp_init();
+    esp_sntp_init();
     sntp_initialized = true;
 }
 
@@ -198,17 +196,17 @@ static void process_pc_command(const char *command)
 
     if (strcasecmp(command, "help") == 0) {
         printf("\n=== Available Commands (Pico Format) ===\n");
-        printf("in <1-2> out <0-15>  - Set input to output\n");
-        printf("in <1-2> off          - Turn off input\n");
+        printf("in <0-1> out <0-15>  - Set input to output\n");
+        printf("in <0-1> off          - Turn off input\n");
         printf("release               - Release controller\n");
         printf("clear                 - Clear display\n");
         printf("draw                  - Redraw display\n");
         printf("screen                - Enable screensaver\n");
         printf("STATUS                - Get current status\n");
         printf("\nExamples:\n");
-        printf("  in 1 out 5          - Set IN1 to OUT5\n");
-        printf("  in 2 out 12         - Set IN2 to OUT12\n");
-        printf("  in 1 off            - Turn off IN1\n");
+        printf("  in 0 out 5          - Set IN0 to OUT5\n");
+        printf("  in 1 out 12         - Set IN1 to OUT12\n");
+        printf("  in 0 off            - Turn off IN0\n");
         printf("========================================\n\n");
         return;
     }
@@ -312,24 +310,24 @@ static void uart_bridge_task(void *arg)
             
             printf("\nArduino: %s\n", response);
             
-            char in1_str[16], in2_str[16];
-            int parsed = sscanf(response, "IN1=%15s IN2=%15s", in1_str, in2_str);
+            char IN0_str[16], IN1_str[16];
+            int parsed = sscanf(response, "IN0=%15s IN1=%15s", IN0_str, IN1_str);
 
             if (parsed == 2) {
-                if (strcmp(in1_str, "OFF") == 0) {
+                if (strcmp(IN0_str, "OFF") == 0) {
+                    current_IN0_value = -1;
+                } else {
+                    current_IN0_value = atoi(IN0_str);
+                }
+                
+                if (strcmp(IN1_str, "OFF") == 0) {
                     current_IN1_value = -1;
                 } else {
-                    current_IN1_value = atoi(in1_str);
+                    current_IN1_value = atoi(IN1_str);
                 }
                 
-                if (strcmp(in2_str, "OFF") == 0) {
-                    current_IN2_value = -1;
-                } else {
-                    current_IN2_value = atoi(in2_str);
-                }
-                
-                ESP_LOGI(UART_TAG, "Status updated: IN1=%d, IN2=%d",
-                         current_IN1_value, current_IN2_value);
+                ESP_LOGI(UART_TAG, "Status updated: IN0=%d, IN1=%d",
+                         current_IN0_value, current_IN1_value);
             }
             
             update_uart_status(response);

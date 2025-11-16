@@ -211,39 +211,48 @@ static void process_pc_command(const char *command)
         return;
     }
 
-    if (strcasecmp(command, "STATUS") == 0) {
-        ESP_LOGI(UART_TAG, "Requesting status from Arduino");
-        uart_write_bytes(UART_DEVICE_NUM, "STATUS\n", 7);
-        return;
-    }
-
     char cmd_lower[16];
     strncpy(cmd_lower, command, 15);
     cmd_lower[15] = '\0';
     
-    for (int i = 0; cmd_lower[i] && cmd_lower[i] != ' '; i++) {
+    for (int i = 0; i <=sizeof(cmd_lower)-1; i++) {
         cmd_lower[i] = tolower(cmd_lower[i]);
     }
 
-    if (strncmp(cmd_lower, "in ", 3) == 0 ||
-        strcmp(cmd_lower, "off") == 0 ||
+    if (strcmp(cmd_lower, "off") == 0 ||
         strcmp(cmd_lower, "release") == 0 ||
         strcmp(cmd_lower, "clear") == 0 ||
         strcmp(cmd_lower, "draw") == 0 ||
         strcmp(cmd_lower, "screen") == 0) {
         
         char buffer[128];
-        snprintf(buffer, sizeof(buffer), "%s\n", command);
-        ESP_LOGI(UART_TAG, "Forwarding to Arduino: %s", command);
+        snprintf(buffer, sizeof(buffer), "%s\n", cmd_lower);
+        ESP_LOGI(UART_TAG, "Forwarding to Arduino: %s", cmd_lower);
         uart_write_bytes(UART_DEVICE_NUM, buffer, strlen(buffer));
-        
         vTaskDelay(150 / portTICK_PERIOD_MS);
-        
         ESP_LOGI(UART_TAG, "Auto-requesting status after command");
         uart_write_bytes(UART_DEVICE_NUM, "STATUS\n", 7);
         
-    } else {
-        printf("ERROR: Unknown command '%s'\n", command);
+    } else if (strncmp(cmd_lower, "in ", 3) == 0){
+        char channel_check = cmd_lower[3];
+        if (channel_check == '0' || channel_check == '1') {
+            char buffer[128];
+            snprintf(buffer, sizeof(buffer), "%s\n", cmd_lower);
+            ESP_LOGI(UART_TAG, "Forwarding to Arduino: %s", cmd_lower);
+            uart_write_bytes(UART_DEVICE_NUM, buffer, strlen(buffer));
+            vTaskDelay(150 / portTICK_PERIOD_MS);
+            ESP_LOGI(UART_TAG, "Auto-requesting status after command");
+            uart_write_bytes(UART_DEVICE_NUM, "STATUS\n", 7);
+        } else {
+            ESP_LOGI(UART_TAG, "Bad usage! Example: in <0-1> out <0-15>");
+        }
+    } else if (strcasecmp(command, "STATUS") == 0) {
+        ESP_LOGI(UART_TAG, "Requesting status from Arduino");
+        uart_write_bytes(UART_DEVICE_NUM, "STATUS\n", 7);
+        return;
+
+    } else { 
+        printf("ERROR: Unknown command '%s'\n", cmd_lower);
         printf("Type 'help' for available commands\n");
     }
 }

@@ -40,9 +40,9 @@ void setup() {
 #endif
 
   lcd.clear();
-  lcd.print("IN1: OFF");
+  lcd.print("IN0: OFF");
   lcd.setCursor(0, 1);
-  lcd.print("IN2: OFF");
+  lcd.print("IN1: OFF");
 
   // Ustaw wszystkie wyjścia
   for (int i = 0; i < 16; i++) {
@@ -109,13 +109,13 @@ void processCommand(char* input, bool fromESP) {
       int value = atoi(token);
 
 
-      if (value < 1 || value > 2) {
-        sendResponse("ERROR: Invalid input channel (use 1 or 2)", fromESP);
+      if (value < 0 || value > 1) {
+        sendResponse("ERROR: Invalid input channel (use 0 or 1)", fromESP);
         commandOK = false;
         break;
       }
 
-      current_input_channel = value - 1;  // 1 → 0, 2 → 1
+      current_input_channel = value;  // 1 → 0, 2 → 1
       updateNeeded = true;
     }
 
@@ -211,9 +211,9 @@ void sendResponse(const char* msg, bool toESP) {
 }
 
 void sendStatus(bool toESP) {
-  String statusMsg = "IN1=";
+  String statusMsg = "IN0=";
   statusMsg += (channel_out0 >= 0) ? String(channel_out0) : "OFF";
-  statusMsg += " IN2=";
+  statusMsg += " IN1=";
   statusMsg += (channel_out1 >= 0) ? String(channel_out1) : "OFF";
 
   if (toESP) {
@@ -225,7 +225,7 @@ void sendStatus(bool toESP) {
 void updateLCD() {
   lcd.clear();
   lcd.setCursor(0, 0);
-  lcd.print("IN1: ");
+  lcd.print("IN0: ");
   if (channel_out0 >= 0) {
     lcd.print(channel_out0);
   } else {
@@ -233,7 +233,7 @@ void updateLCD() {
   }
 
   lcd.setCursor(0, 1);
-  lcd.print("IN2: ");
+  lcd.print("IN1: ");
   if (channel_out1 >= 0) {
     lcd.print(channel_out1);
   } else {

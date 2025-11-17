@@ -73,7 +73,7 @@ void send_raw_uart_command(const char *command) {
     vTaskDelay(150 / portTICK_PERIOD_MS);
 
     // Automatically request a status update
-    if(strcasecmp(command,"status") !=)
+    if(strcmp(command,"status") != 0)
     {
         const char *status_cmd = "status\n";
         uart_write_bytes(UART_DEVICE_NUM, status_cmd, strlen(status_cmd));

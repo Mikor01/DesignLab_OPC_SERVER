@@ -1,4 +1,5 @@
 idf_component_register(SRCS "model.c"
+                            "uart_bridge.c"
                     INCLUDE_DIRS "include" "../open62541lib/include"
                     REQUIRES "driver")
 

@@ -30,6 +30,7 @@
 #include "ethernet_connect.h" // Assume this file exists
 #include "open62541.h"
 #include "model.h" // Includes the OPC-UA data model
+#include "uart_bridge.h"
 
 // UART Bridge Configuration
 #define UART_PC_NUM     (UART_NUM_0)

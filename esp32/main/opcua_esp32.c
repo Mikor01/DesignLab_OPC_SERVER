@@ -1,4 +1,6 @@
 #include "opcua_esp32.h"
+#include "model.h"
+#include "uart_bridge.h"
 
 #define TAG "OPCUA_ESP32"
 #define SNTP_TAG "SNTP"
@@ -195,64 +197,32 @@ static void process_pc_command(const char *command)
     }
 
     if (strcasecmp(command, "help") == 0) {
-        printf("\n=== Available Commands (Pico Format) ===\n");
-        printf("in <0-1> out <0-15>  - Set input to output\n");
-        printf("in <0-1> off          - Turn off input\n");
-        printf("release               - Release controller\n");
-        printf("clear                 - Clear display\n");
-        printf("draw                  - Redraw display\n");
-        printf("screen                - Enable screensaver\n");
-        printf("STATUS                - Get current status\n");
-        printf("\nExamples:\n");
-        printf("  in 0 out 5          - Set IN0 to OUT5\n");
-        printf("  in 1 out 12         - Set IN1 to OUT12\n");
-        printf("  in 0 off            - Turn off IN0\n");
-        printf("========================================\n\n");
+        print_help();
         return;
     }
 
-    char cmd_lower[16];
-    strncpy(cmd_lower, command, 15);
-    cmd_lower[15] = '\0';
-    
-    for (int i = 0; i <=sizeof(cmd_lower)-1; i++) {
+    // Convert the command to lowercase for consistent processing
+    char cmd_lower[64]; // Increased buffer size for safety
+    strncpy(cmd_lower, command, sizeof(cmd_lower) - 1);
+    cmd_lower[sizeof(cmd_lower) - 1] = '\0';
+    for (int i = 0; cmd_lower[i]; i++) {
         cmd_lower[i] = tolower(cmd_lower[i]);
     }
 
+    // --- STREAMLINED LOGIC ---
     if (strcmp(cmd_lower, "off") == 0 ||
         strcmp(cmd_lower, "release") == 0 ||
         strcmp(cmd_lower, "clear") == 0 ||
         strcmp(cmd_lower, "draw") == 0 ||
-        strcmp(cmd_lower, "screen") == 0) {
+        strcmp(cmd_lower, "screen") == 0 ||
+        strcmp(cmd_lower, "status") == 0 || // Treat "status" like any other command
+        strncmp(cmd_lower, "in ", 3) == 0) {
         
-        char buffer[128];
-        snprintf(buffer, sizeof(buffer), "%s\n", cmd_lower);
-        ESP_LOGI(UART_TAG, "Forwarding to Arduino: %s", cmd_lower);
-        uart_write_bytes(UART_DEVICE_NUM, buffer, strlen(buffer));
-        vTaskDelay(150 / portTICK_PERIOD_MS);
-        ESP_LOGI(UART_TAG, "Auto-requesting status after command");
-        uart_write_bytes(UART_DEVICE_NUM, "STATUS\n", 7);
-        
-    } else if (strncmp(cmd_lower, "in ", 3) == 0){
-        char channel_check = cmd_lower[3];
-        if (channel_check == '0' || channel_check == '1') {
-            char buffer[128];
-            snprintf(buffer, sizeof(buffer), "%s\n", cmd_lower);
-            ESP_LOGI(UART_TAG, "Forwarding to Arduino: %s", cmd_lower);
-            uart_write_bytes(UART_DEVICE_NUM, buffer, strlen(buffer));
-            vTaskDelay(150 / portTICK_PERIOD_MS);
-            ESP_LOGI(UART_TAG, "Auto-requesting status after command");
-            uart_write_bytes(UART_DEVICE_NUM, "STATUS\n", 7);
-        } else {
-            ESP_LOGI(UART_TAG, "Bad usage! Example: in <0-1> out <0-15>");
-        }
-    } else if (strcasecmp(command, "STATUS") == 0) {
-        ESP_LOGI(UART_TAG, "Requesting status from Arduino");
-        uart_write_bytes(UART_DEVICE_NUM, "STATUS\n", 7);
-        return;
+        // All valid Arduino commands are sent through the bridge function
+        send_raw_uart_command(cmd_lower);
 
-    } else { 
-        printf("ERROR: Unknown command '%s'\n", cmd_lower);
+    } else {
+        printf("ERROR: Unknown command '%s'\n", command);
         printf("Type 'help' for available commands\n");
     }
 }
@@ -317,7 +287,7 @@ static void uart_bridge_task(void *arg)
             device_data[len_device] = '\0';
             char* response = (char*)device_data;
             
-            printf("\nArduino: %s\n", response);
+            printf("\nPico: %s\n", response);
             
             char IN0_str[16], IN1_str[16];
             int parsed = sscanf(response, "IN0=%15s IN1=%15s", IN0_str, IN1_str);
@@ -341,7 +311,7 @@ static void uart_bridge_task(void *arg)
             
             update_uart_status(response);
             
-            printf("> ");
+            //printf("> ");
             fflush(stdout);
         }
 

@@ -1,55 +1,8 @@
-
-#include "open62541.h"
 #include "model.h"
-#include "driver/gpio.h"
-#include "driver/uart.h"
-#include <string.h>
-
-
-/*
- * Global variables, defined in model.h
- * These are volatile as they are written by the UART task
- * and read by the OPC-UA task.
- */
-volatile UA_Int32 current_IN0_value = 0;
-volatile UA_Int32 current_IN1_value = 0;
-UA_String last_uart_status = {0, NULL};
-
+#include "uart_bridge.h"
 
 // This is defined in opcua_esp32.c
 extern const int UART_DEVICE_NUM;
-
-/**
- * @brief Sends a Pico-format command to Arduino via UART.
- * @param input_channel (0 or 1)
- * @param output_value (-1=OFF, 0-15=OUT)
- */
-void send_uart_command_from_opcua(int input_channel, int output_value) {
-    char buffer[64];
-    int len;
-   
-    if (output_value == -1) {
-        // "in <0-1> off"
-        len = snprintf(buffer, sizeof(buffer), "in %d off\n", input_channel);
-    } else if (output_value >= 0 && output_value < 16) {
-        // "in <0-1> out <0-15>"
-        len = snprintf(buffer, sizeof(buffer), "in %d out %d\n", input_channel, output_value);
-    } else {
-        // Invalid value
-        return;
-    }
-   
-    // Send command to Arduino
-    uart_write_bytes(UART_DEVICE_NUM, buffer, len);
-   
-    // Short delay for processing
-    vTaskDelay(200 / portTICK_PERIOD_MS); // ZWIĘKSZONO z 50ms do 200ms
-   
-    // Request status update
-    const char *status_cmd = "STATUS\n";
-    uart_write_bytes(UART_DEVICE_NUM, status_cmd, strlen(status_cmd));
-} 
-
 
 /* --- IN0 Control Node --- */
 UA_StatusCode
@@ -89,7 +42,7 @@ writeIN0Value(UA_Server *server,
     }
 
     // Send command and request status
-    send_uart_command_from_opcua(1, target_value);
+    send_uart_command_from_opcua(0, target_value);
    
     // Wait for uart_bridge_task to update the global variable
     // Timeout after ~2 seconds (40 * 50ms)
@@ -175,7 +128,7 @@ writeIN1Value(UA_Server *server,
     }
 
     // Send command and request status
-    send_uart_command_from_opcua(2, target_value);
+    send_uart_command_from_opcua(1, target_value);
    
     // Wait for uart_bridge_task to update the global variable
     // Timeout after ~2 seconds (40 * 50ms)
@@ -230,6 +183,9 @@ readUARTStatus(UA_Server *server,
                const UA_NodeId *nodeId, void *nodeContext,
                UA_Boolean sourceTimeStamp, const UA_NumericRange *range,
                UA_DataValue *dataValue) {
+
+    UA_String last_uart_status = get_last_uart_status();
+
     if (last_uart_status.length > 0) {
         UA_Variant_setScalarCopy(&dataValue->value, &last_uart_status,
                                  &UA_TYPES[UA_TYPES_STRING]);
@@ -264,15 +220,3 @@ addUARTStatusNode(UA_Server *server) {
                                         variableTypeNodeId, attr,
                                         statusDataSource, NULL, NULL);
 }
-
-/**
- * @brief Updates the internal UA_String used by the OPC-UA status node.
- * This is called by the UART bridge task.
- */
-void update_uart_status(const char* new_status) {
-    // Clear old
-    UA_String_clear(&last_uart_status);
-   
-    // Set new
-    last_uart_status = UA_String_fromChars(new_status);
-    }

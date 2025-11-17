@@ -73,8 +73,11 @@ void send_raw_uart_command(const char *command) {
     vTaskDelay(150 / portTICK_PERIOD_MS);
 
     // Automatically request a status update
-    const char *status_cmd = "STATUS\n";
-    uart_write_bytes(UART_DEVICE_NUM, status_cmd, strlen(status_cmd));
+    if(strcasecmp(command,"status") !=)
+    {
+        const char *status_cmd = "status\n";
+        uart_write_bytes(UART_DEVICE_NUM, status_cmd, strlen(status_cmd));
+    }
 }
 
 void print_help(void){
@@ -85,7 +88,7 @@ void print_help(void){
         printf("clear                 - Clear display\n");
         printf("draw                  - Redraw display\n");
         printf("screen                - Enable screensaver\n");
-        printf("STATUS                - Get current status\n");
+        printf("status                - Get current status\n");
         printf("\nExamples:\n");
         printf("  in 0 out 5          - Set IN0 to OUT5\n");
         printf("  in 1 out 12         - Set IN1 to OUT12\n");

@@ -218,7 +218,7 @@ static void process_pc_command(const char *command)
         strcmp(cmd_lower, "status") == 0 || // Treat "status" like any other command
         strncmp(cmd_lower, "in ", 3) == 0) {
         
-        // All valid Arduino commands are sent through the bridge function
+        // All valid Pico commands are sent through the bridge function
         send_raw_uart_command(cmd_lower);
 
     } else {
@@ -245,9 +245,9 @@ static void uart_bridge_task(void *arg)
     static char pc_cmd_buffer[128];
     static int pc_cmd_index = 0;
 
-    ESP_LOGI(UART_TAG, "UART Command Processor Initialized (Pico Format)");
+    ESP_LOGI(UART_TAG, "UART Command Processor Initialized");
     printf("\n===========================================\n");
-    printf("  Arduino Multiplexer Controller Ready\n");
+    printf("  Pico Multiplexer Controller Ready\n");
     printf("===========================================\n");
     printf("Type 'help' for available commands\n");
     printf("> ");

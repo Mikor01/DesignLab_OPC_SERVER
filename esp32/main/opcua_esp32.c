@@ -67,7 +67,7 @@ static void opcua_task(void *arg)
     
     UA_ServerConfig_setUriName(config, appUri, "OPC_UA_Server_ESP32");
     UA_ServerConfig_setCustomHostname(config, hostName);
-    config->maxSessions = 1;
+    //config->maxSessions = 1;
     addIN1ControlNode(server);
     addIN2ControlNode(server);
     addUARTStatusNode(server);

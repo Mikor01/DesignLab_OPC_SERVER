@@ -68,15 +68,15 @@ static void opcua_task(void *arg)
     UA_ServerConfig_setUriName(config, appUri, "OPC_UA_Server_ESP32");
     UA_ServerConfig_setCustomHostname(config, hostName);
     config->maxSessions = 1;
-    addIN0ControlNode(server);
     addIN1ControlNode(server);
+    addIN2ControlNode(server);
     addUARTStatusNode(server);
 
     ESP_LOGI(TAG, "Heap Left : %d", xPortGetFreeHeapSize());
     UA_StatusCode retval = UA_Server_run_startup(server);
     
-    static UA_Int32 opcua_known_IN0 = 0;
     static UA_Int32 opcua_known_IN1 = 0;
+    static UA_Int32 opcua_known_IN2 = 0;
     UA_DataValue data_value;
     UA_DataValue_init(&data_value);
     data_value.hasValue = true;
@@ -89,16 +89,16 @@ static void opcua_task(void *arg)
             UA_Server_run_iterate(server, false);
             /*UA_ServerStatistics stats = UA_Server_getStatistics(server);
             ESP_LOGI(TAG, "Aktualna liczba sesji: %zu", stats.ss.currentSessionCount);*/ // check how many sessions are connected
-            if (current_IN0_value != opcua_known_IN0) {
-                opcua_known_IN0 = current_IN0_value;
-                UA_Variant_setScalar(&data_value.value, &opcua_known_IN0, &UA_TYPES[UA_TYPES_INT32]);
-                UA_Server_writeDataValue(server, UA_NODEID_STRING(1, "IN0_control"), data_value);
-            }
-            
             if (current_IN1_value != opcua_known_IN1) {
                 opcua_known_IN1 = current_IN1_value;
                 UA_Variant_setScalar(&data_value.value, &opcua_known_IN1, &UA_TYPES[UA_TYPES_INT32]);
                 UA_Server_writeDataValue(server, UA_NODEID_STRING(1, "IN1_control"), data_value);
+            }
+            
+            if (current_IN2_value != opcua_known_IN2) {
+                opcua_known_IN2 = current_IN2_value;
+                UA_Variant_setScalar(&data_value.value, &opcua_known_IN1, &UA_TYPES[UA_TYPES_INT32]);
+                UA_Server_writeDataValue(server, UA_NODEID_STRING(1, "IN2_control"), data_value);
             }
 
             vTaskDelay(100 / portTICK_PERIOD_MS);
@@ -289,24 +289,24 @@ static void uart_bridge_task(void *arg)
             
             printf("\nPico: %s\n", response);
             
-            char IN0_str[16], IN1_str[16];
-            int parsed = sscanf(response, "IN0=%15s IN1=%15s", IN0_str, IN1_str);
+            char IN1_str[16], IN2_str[16];
+            int parsed = sscanf(response, "IN1=%15s IN2=%15s", IN1_str, IN2_str);
 
             if (parsed == 2) {
-                if (strcmp(IN0_str, "OFF") == 0) {
-                    current_IN0_value = -1;
-                } else {
-                    current_IN0_value = atoi(IN0_str);
-                }
-                
                 if (strcmp(IN1_str, "OFF") == 0) {
                     current_IN1_value = -1;
                 } else {
                     current_IN1_value = atoi(IN1_str);
                 }
                 
-                ESP_LOGI(UART_TAG, "Status updated: IN0=%d, IN1=%d",
-                         current_IN0_value, current_IN1_value);
+                if (strcmp(IN2_str, "OFF") == 0) {
+                    current_IN2_value = -1;
+                } else {
+                    current_IN2_value = atoi(IN2_str);
+                }
+                
+                ESP_LOGI(UART_TAG, "Status updated: IN1=%d, IN2=%d",
+                         current_IN1_value, current_IN2_value);
             }
             
             update_uart_status(response);

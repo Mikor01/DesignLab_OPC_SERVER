@@ -25,12 +25,12 @@
 /**
  * @brief Adds the IN0 control node to the OPC-UA server.
  */
-void addIN0ControlNode(UA_Server *server);
+void addIN1ControlNode(UA_Server *server);
 
 /**
  * @brief Adds the IN1 control node to the OPC-UA server.
  */
-void addIN1ControlNode(UA_Server *server);
+void addIN2ControlNode(UA_Server *server);
 
 /**
  * @brief Adds the read-only node for the last UART status.

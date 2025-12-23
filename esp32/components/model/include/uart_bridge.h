@@ -5,8 +5,8 @@
 #include "open62541.h"
 
 // Declare the global variables that will be defined in uart_bridge.c
-extern volatile UA_Int32 current_IN0_value;
 extern volatile UA_Int32 current_IN1_value;
+extern volatile UA_Int32 current_IN2_value;
 
 /**
  * @brief Sends a command to the device connected via UART.

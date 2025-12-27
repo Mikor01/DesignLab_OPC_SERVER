@@ -62,6 +62,24 @@ Once flashed and running, the ESP32 will:
 
 You can connect to the server using any OPC UA client (such as UAExpert or Prosys OPC UA Browser) using the server's IP address and configured endpoint.
 
+### To use the included Python clients, you need to set up a virtual environment:
+1. Setup Environment:
+```bash
+# Create venv
+python -m venv venv
+
+# Activate (Windows)
+.\venv\Scripts\activate
+# Activate (Linux/macOS)
+source venv/bin/activate
+
+# Install requirements
+pip install opcua
+```
+2. Run Client
+- GUI Version: ```bash python GUI_OPC_client.py```
+
+- Terminal Version: ```bash python OPC_client.py```
 
 ## Acknowledgments
 

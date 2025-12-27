@@ -210,14 +210,13 @@ writeUARTStatus(UA_Server *server,
 
     UA_String *val = (UA_String*)data->value.data;
     
-    // Konwersja UA_String na zwykły string C, aby wysłać przez UART
     char *cmd = (char*)UA_malloc(val->length + 1);
     if (!cmd) return UA_STATUSCODE_BADOUTOFMEMORY;
     
     memcpy(cmd, val->data, val->length);
     cmd[val->length] = '\0';
 
-    // Wysyłamy surową komendę wpisaną w UA Expert do Pico
+
     send_raw_uart_command(cmd);
     
     UA_free(cmd);
@@ -231,7 +230,7 @@ addUARTStatusNode(UA_Server *server) {
     attr.description = UA_LOCALIZEDTEXT("en-US", "Last status or send custom command");
     attr.dataType = UA_TYPES[UA_TYPES_STRING].typeId;
     
-    // ZMIANA: Dodano UA_ACCESSLEVELMASK_WRITE
+
     attr.accessLevel = UA_ACCESSLEVELMASK_READ | UA_ACCESSLEVELMASK_WRITE;
 
     UA_NodeId currentNodeId = UA_NODEID_STRING(1, "uart_status");
@@ -242,7 +241,7 @@ addUARTStatusNode(UA_Server *server) {
 
     UA_DataSource statusDataSource;
     statusDataSource.read = readUARTStatus;
-    // ZMIANA: Przypisanie nowej funkcji zapisu
+
     statusDataSource.write = writeUARTStatus; 
    
     UA_Server_addDataSourceVariableNode(server, currentNodeId, parentNodeId,

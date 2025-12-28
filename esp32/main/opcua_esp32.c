@@ -59,7 +59,6 @@ static void opcua_task(void *arg)
     UA_Server *server = UA_Server_new();
     UA_ServerConfig *config = UA_Server_getConfig(server);
 
-    ESP_LOGI(TAG, "Ustawiono maxSessions na: %d", (int)config->maxSessions);
     UA_ServerConfig_setMinimalCustomBuffer(config, 4840, 0, sendBufferSize, recvBufferSize);
 
     const char *appUri = "open62541.esp32.server";
@@ -81,14 +80,25 @@ static void opcua_task(void *arg)
     UA_DataValue_init(&data_value);
     data_value.hasValue = true;
 
+    TickType_t last_status_time = 0;
+    const TickType_t status_interval = 2000 / portTICK_PERIOD_MS;
+
     if (retval == UA_STATUSCODE_GOOD)
     {
         while (running)
         {
 
             UA_Server_run_iterate(server, false);
-            /*UA_ServerStatistics stats = UA_Server_getStatistics(server);
-            ESP_LOGI(TAG, "Aktualna liczba sesji: %zu", stats.ss.currentSessionCount);*/ // check how many sessions are connected
+
+            TickType_t now_tick = xTaskGetTickCount();
+            if ((now_tick - last_status_time) > status_interval) {
+                // Send the command
+                send_raw_uart_command("status");
+                
+                // Update the timer
+                last_status_time = now_tick;
+            }
+            
             if (current_IN1_value != opcua_known_IN1) {
                 opcua_known_IN1 = current_IN1_value;
                 UA_Variant_setScalar(&data_value.value, &opcua_known_IN1, &UA_TYPES[UA_TYPES_INT32]);
@@ -177,6 +187,9 @@ static void opc_event_handler(void *arg, esp_event_base_t event_base,
 static void disconnect_handler(void *arg, esp_event_base_t event_base,
                                int32_t event_id, void *event_data)
 {
+    ESP_LOGW(TAG, "Ethernet/WiFi Disconnected! Attempting to reconnect/restart...");
+    vTaskDelay(20000 / portTICK_PERIOD_MS);
+    esp_restart();
 }
 
 static void connection_scan(void)

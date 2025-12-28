@@ -32,3 +32,9 @@ sdkconfig.txt
 /esp32/sdkconfig.old
 /esp32/sdkconfig.defaults
 /esp32/sdkconfig.txt
+/.cache
+.cache
+.cache/
+/esp32/.cache
+/esp32/.cache
+/esp32/.cache/

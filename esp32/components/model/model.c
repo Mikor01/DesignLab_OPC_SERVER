@@ -120,7 +120,7 @@ writeIN2Value(UA_Server *server,
     }
    
     UA_Int32 target_value = value;
-    UA_Int32 old_value = current_IN1_value;
+    UA_Int32 old_value = current_IN2_value;
 
     // If value is already set, do nothing
     if (old_value == target_value) {

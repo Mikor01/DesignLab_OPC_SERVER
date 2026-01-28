@@ -1,0 +1,35 @@
+#ifndef __DISPLAY_COMMAND_H__
+#define __DISPLAY_COMMAND_H__
+
+#define ENABLE_GRAY_SCALE       0x00
+#define SELECT_DEFAULT_LINEAR_GRAY_SCALE_TABLE 0xB9
+#define SET_CONTRAST_CURRENT    0xC1
+
+#define SET_COMMAND_LOCK        0xFD
+
+#define WRITE_RAM_COMMAND       0x5C
+#define READ_RAM_COMMAND        0x5D
+
+#define SET_DISPLAY_START_LINE  0xA1
+#define SET_DISPLAY_OFFSET      0xA2
+#define SET_COLUMN_ADDRESS      0x15
+#define SET_ROW_ADDRESS         0x75
+
+#define SET_REMAP_AND_DUAL_COM_LINE_MODE 0xA0
+
+#define SET_DISPLAY_ALL_OFF     0xA4
+#define SET_DISPLAY_ALL_ON      0xA5
+#define SET_DISPLAY_NORMAL      0xA6
+#define SET_DISPLAY_INVERSE     0xA7
+#define ENABLE_PARTIAL_DISPLAY  0xA8
+#define EXIT_PARTIAL_DISPLAY    0xA9
+#define FUNCTION_SELECTION      0xAB
+
+#define SLEEP_ON                0xAE
+#define SLEEP_OFF               0xAF
+
+
+
+
+
+#endif

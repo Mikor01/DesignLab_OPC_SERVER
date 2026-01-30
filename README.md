@@ -95,5 +95,6 @@ This project is built upon:
 20.11.25 - Added status command to Pico, refined UART and OPC node code on ESP  
 27.11.25 - Final touches in regards to main functionality  
 <4,11,18>.12.25 - Extensive stability testing and bug fixes  
-<8,15,22>.01.26 - Python OPC client TUI / GUI developement and minor bug fixes  
+<8,15>.01.26 - Python OPC client TUI / GUI developement  
+22.01.26 - Minor bug fixes  
 29.01.26 - Final presentation

@@ -92,8 +92,8 @@ This project is built upon:
 30.10.25 - initial commits and testing  
 06.11.25 - Added basic UART functionalities  
 13.11.25 - Modified UART to be compliant with pico commands  
-20.11.25 - Added status command to Pico, refined UART code on ESP
-27.11.25 - Final touches in regards to main functionality
-<4,11,18>.12.25 - Extensive stability testing and bug fixes
-<8,15,22>.01.26 - Python OPC client TUI / GUI developement and minor bug fixes
+20.11.25 - Added status command to Pico, refined UART code on ESP  
+27.11.25 - Final touches in regards to main functionality  
+<4,11,18>.12.25 - Extensive stability testing and bug fixes  
+<8,15,22>.01.26 - Python OPC client TUI / GUI developement and minor bug fixes  
 29.01.26 - Final presentation
